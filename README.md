@@ -14,6 +14,7 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - **Web Tools**: fetch and search functionality
 - **Railway Tools**: Live train data integration
 - **Music Tools**: YouTube and streaming platform integration
+- **Weather Tools**: Real-time weather data by location
 
 ### 🛠️ Available Tools
 
@@ -47,6 +48,9 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - **Multi-Format Support**: MP3, AAC, WebM, and more
 - **Quality Selection**: Choose audio quality for streaming/download
 - **Platform Integration**: Works with YouTube, YouTube Music, and other platforms
+
+#### Weather Tools (🔴 Live Data from OpenWeatherMap)
+- **`get_weather(location, units)`** - Get current weather conditions for any location
 
 ### 🔧 Technical Features
 

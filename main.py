@@ -9,10 +9,22 @@ from openai import BaseModel
 from pydantic import AnyUrl, Field
 import readabilipy
 from pathlib import Path
+from dotenv import load_dotenv
+import os
 
-TOKEN = "<generated_token>"
-MY_NUMBER = "9189XXXXXXXX"  # Insert your number {91}{Your number}
+# Import tool registration functions
+from src.tools.core_tools import register_core_tools
+from src.tools.web_tools import register_web_tools
+from src.tools.railway_tools import register_railway_tools
+from src.tools.music_tools import register_music_tools
 
+load_dotenv()
+
+TOKEN = os.getenv("TOKEN")
+MY_NUMBER = os.getenv("MY_NUMBER")
+
+if not TOKEN or not MY_NUMBER:
+    raise ValueError("TOKEN and MY_NUMBER environment variables must be set")
 
 class RichToolDescription(BaseModel):
     description: str
@@ -47,8 +59,16 @@ class SimpleBearerAuthProvider(BearerAuthProvider):
 
 
 class Fetch:
-    IGNORE_ROBOTS_TXT = True
-    USER_AGENT = "Puch/1.0 (Autonomous)"
+    """
+    A utility class for fetching and processing webpage content.
+    
+    Attributes:
+        IGNORE_ROBOTS_TXT (bool): Flag to ignore robots.txt restrictions
+        USER_AGENT (str): User agent string for HTTP requests
+    """
+    
+    IGNORE_ROBOTS_TXT: bool = True
+    USER_AGENT: str = "ChupAI/1.0 (Intelligent Assistant for Puch AI)"
 
     @classmethod
     async def fetch_url(
@@ -121,103 +141,29 @@ class Fetch:
         return content
 
 
-
-
 mcp = FastMCP(
-    "My MCP Server",
+    "Chup AI - Intelligent Assistant for Puch AI",
     auth=SimpleBearerAuthProvider(TOKEN),
 )
 
-ResumeToolDescription = RichToolDescription(
-    description="Serve your resume in plain markdown.",
-    use_when="Puch (or anyone) asks for your resume; this must return raw markdown, \
-no extra formatting.",
-    side_effects=None,
-)
-
-@mcp.tool(description=ResumeToolDescription.model_dump_json())
-async def resume() -> str:
-    """
-    Return your resume exactly as markdown text.
-    
-    TODO: Implement this function to:
-    1. Find and read your resume.
-    2. Convert the resume to markdown format.
-    3. Handle any errors gracefully.
-    4. Return the resume as markdown text.
-    """
-    # TODO: Implement resume fetching logic
-    raise NotImplementedError("Resume tool not implemented")
-
-
-@mcp.tool
-async def validate() -> str:
-    """
-    NOTE: This tool must be present in an MCP server used by puch.
-    """
-    return MY_NUMBER
-
-
-FetchToolDescription = RichToolDescription(
-    description="Fetch a URL and return its content.",
-    use_when="Use this tool when the user provides a URL and asks for its content, or when the user wants to fetch a webpage.",
-    side_effects="The user will receive the content of the requested URL in a simplified format, or raw HTML if requested.",
-)
-
-
-@mcp.tool(description=FetchToolDescription.model_dump_json())
-async def fetch(
-    url: Annotated[AnyUrl, Field(description="URL to fetch")],
-    max_length: Annotated[
-        int,
-        Field(
-            default=5000,
-            description="Maximum number of characters to return.",
-            gt=0,
-            lt=1000000,
-        ),
-    ] = 5000,
-    start_index: Annotated[
-        int,
-        Field(
-            default=0,
-            description="On return output starting at this character index, useful if a previous fetch was truncated and more context is required.",
-            ge=0,
-        ),
-    ] = 0,
-    raw: Annotated[
-        bool,
-        Field(
-            default=False,
-            description="Get the actual HTML content if the requested page, without simplification.",
-        ),
-    ] = False,
-) -> list[TextContent]:
-    """Fetch a URL and return its content."""
-    url_str = str(url).strip()
-    if not url:
-        raise McpError(ErrorData(code=INVALID_PARAMS, message="URL is required"))
-
-    content, prefix = await Fetch.fetch_url(url_str, Fetch.USER_AGENT, force_raw=raw)
-    original_length = len(content)
-    if start_index >= original_length:
-        content = "<error>No more content available.</error>"
-    else:
-        truncated_content = content[start_index : start_index + max_length]
-        if not truncated_content:
-            content = "<error>No more content available.</error>"
-        else:
-            content = truncated_content
-            actual_content_length = len(truncated_content)
-            remaining_content = original_length - (start_index + actual_content_length)
-            # Only add the prompt to continue fetching if there is still remaining content
-            if actual_content_length == max_length and remaining_content > 0:
-                next_start = start_index + actual_content_length
-                content += f"\n\n<error>Content truncated. Call the fetch tool with a start_index of {next_start} to get more content.</error>"
-    return [TextContent(type="text", text=f"{prefix}Contents of {url}:\n{content}")]
+register_core_tools(mcp)
+register_web_tools(mcp)
+register_railway_tools(mcp)
+register_music_tools(mcp)
 
 
 async def main():
+    """
+    Main entry point for Chup AI MCP server.
+    
+    Chup AI is an intelligent assistant built for Puch AI that provides:
+    - Resume and validation services
+    - Web content fetching and search
+    - Live Indian Railway information
+    - YouTube music streaming and multi-platform music search
+    - WhatsApp chatbot integration ready
+    """
+
     await mcp.run_async(
         "streamable-http",
         host="0.0.0.0",

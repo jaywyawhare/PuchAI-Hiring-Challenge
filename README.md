@@ -7,7 +7,7 @@ This repository contains my submission for the PuchAI hiring challenge. While th
 - Return developer's resume in markdown format
 - Include validation tool required by Puch AI system
 
-## 🚀 Extended Implementation
+## 🚀 Extended Implementation   
 I went beyond the basic requirements to demonstrate my expertise by implementing:
 
 ### Additional Tools
@@ -15,6 +15,7 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - **Railway Tools**: Live train data integration
 - **Music Tools**: YouTube and streaming platform integration
 - **Weather Tools**: Real-time weather data by location
+- **Academic Tools**: arXiv paper search and retrieval
 
 ### 🛠️ Available Tools
 
@@ -22,6 +23,7 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - **`resume()`** - Serves the developer's resume in markdown format
 - **`validate()`** - Validation tool required by Puch AI system
 - **`get_help_menu()`** - Comprehensive help menu for all available tools
+- **`arxiv(query, max_results)`** - Search and fetch academic papers from arXiv.org
 
 #### Web Tools
 - **`fetch(url, max_length, start_index, raw)`** - Fetch and process web content with smart HTML-to-markdown conversion
@@ -51,6 +53,13 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 
 #### Weather Tools (🔴 Live Data from OpenWeatherMap)
 - **`get_weather(location, units)`** - Get current weather conditions for any location
+
+#### Academic Tools (🔴 Live Data from arXiv.org)
+- **`search_arxiv_papers(query, max_results, include_abstracts)`** - Search academic papers with advanced query support
+- **`get_arxiv_paper(paper_id)`** - Get detailed information about specific papers
+- Advanced query syntax support (e.g., `ti:"neural networks" AND au:"hinton"`)
+- Real-time data from arXiv.org API with proper rate limiting
+- Support for multiple categories and cross-references
 
 ### 🔧 Technical Features
 

@@ -123,6 +123,14 @@ Your intelligent assistant powered by Puch AI technology, optimized for WhatsApp
 • `search_and_stream_music(query, include_streams)` - Search & stream music
 • `download_youtube_audio(video_url, output_format)` - Download YouTube audio
 
+**📚 Academic Tools:**
+• `search_arxiv_papers(query, max_results, include_abstracts)` - Search papers on arXiv
+  Example: search_arxiv_papers('ti:"neural networks" AND au:"hinton"')
+• `get_arxiv_paper(paper_id)` - Get paper details by ID (e.g., 2103.08220)
+
+**📚 arXiv Tools:**
+• `arxiv(query, max_results)` - Search and fetch papers from arXiv.org
+
 **🎯 Key Features:**
 ✅ Real API integration (no mock data)
 ✅ Live Indian Railway data from erail.in
@@ -138,6 +146,7 @@ Your intelligent assistant powered by Puch AI technology, optimized for WhatsApp
 • Search music: "find songs by Queen"
 • Get web content: "fetch https://example.com"
 • Railway info: "trains from NDLS to BCT"
+• Academic papers: "arxiv quantum computing"
 
 **🔒 Authentication:** Bearer token required
 **🌐 Server:** Running on streamable HTTP

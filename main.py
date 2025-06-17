@@ -18,6 +18,7 @@ from src.tools.web_tools import register_web_tools
 from src.tools.railway_tools import register_railway_tools
 from src.tools.music_tools import register_music_tools
 from src.tools.weather_tools import register_weather_tools
+from src.tools.arxiv_tools import register_arxiv_tools 
 
 load_dotenv()
 
@@ -152,6 +153,7 @@ register_web_tools(mcp)
 register_railway_tools(mcp)
 register_music_tools(mcp)
 register_weather_tools(mcp)
+register_arxiv_tools(mcp)  
 
 
 async def main():

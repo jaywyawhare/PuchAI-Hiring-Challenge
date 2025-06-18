@@ -61,6 +61,22 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - Real-time data from arXiv.org API with proper rate limiting
 - Support for multiple categories and cross-references
 
+#### Hacker News Tools (🔴 Live Data from HN API)
+- **`get_hn_stories(story_type, num_stories)`** - Get stories by type (top/new/ask/show)
+- **`search_hn_stories(query, num_results)`** - Search HN stories by keyword
+- **`get_hn_user(username, num_stories)`** - Get user info and recent submissions
+- **`get_item_details(item_id)`** - Get detailed story/comment information
+- Real-time data from official HN Algolia API
+- Support for story details, comments, and user profiles
+
+Features:
+- Live story feeds (top, new, ask, show)
+- Full-text search capabilities
+- User profiles and submissions
+- Comment threading and nesting
+- Story points and timestamps
+- Direct links to HN discussions
+
 ### 🔧 Technical Features
 
 - **Real API Integration**: Uses live data from erail.in for accurate railway information
@@ -69,7 +85,6 @@ I went beyond the basic requirements to demonstrate my expertise by implementing
 - **Multi-Platform Music Search**: Integration with Spotify, YouTube, Apple Music, and more
 - **Comprehensive Error Handling**: Robust error management across all tools
 - **Bearer Token Authentication**: Secure API access with token-based auth
-- **Health Monitoring**: Built-in health check and monitoring endpoints  
 - **Production Ready**: Comprehensive logging, error handling, and deployment guides
 
 ## 🚀 Quick Start

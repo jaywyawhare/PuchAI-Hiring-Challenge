@@ -128,8 +128,26 @@ Your intelligent assistant powered by Puch AI technology, optimized for WhatsApp
   Example: search_arxiv_papers('ti:"neural networks" AND au:"hinton"')
 • `get_arxiv_paper(paper_id)` - Get paper details by ID (e.g., 2103.08220)
 
-**📚 arXiv Tools:**
-• `arxiv(query, max_results)` - Search and fetch papers from arXiv.org
+**📰 Hacker News Tools:**
+• `get_hn_stories(story_type, num_stories)` - Get stories by type:
+  - Types: top, new, ask, show
+  - Live data from official HN API
+  - Includes points, comments, timestamps
+
+• `search_hn_stories(query, num_results)` - Search stories:
+  - Full-text search across all stories
+  - Filter by tags and date
+  - Sort by relevance or date
+
+• `get_hn_user(username, num_stories)` - User profiles:
+  - Account info and karma
+  - Recent submissions
+  - About text and profile links
+
+• `get_item_details(item_id)` - Detailed item view:
+  - Full story/comment text
+  - Nested comments
+  - Rich metadata
 
 **🎯 Key Features:**
 ✅ Real API integration (no mock data)

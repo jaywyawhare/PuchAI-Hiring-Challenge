@@ -10,6 +10,14 @@ import httpx
 import logging
 from datetime import datetime
 from urllib.parse import urlencode
+import openai
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str]
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +90,22 @@ class HackerNewsAPI:
 def register_hn_tools(mcp):
     """Register Hacker News tools with the MCP server."""
     
-    @mcp.tool
+    logger.info("Registering Hacker News tools...")
+    
+    GetHNStoriesToolDescription = RichToolDescription(
+        description="Get Hacker News stories by type (top, new, ask, show).",
+        use_when="Fetches and formats stories from Hacker News, including titles, points, comment counts, and URLs.",
+        side_effects="Makes API calls to Hacker News Algolia API and may be subject to rate limiting.",
+    )
+    
+    @mcp.tool(description=GetHNStoriesToolDescription.model_dump_json())
     async def get_hn_stories(
         story_type: Annotated[str, Field(description="Type of stories to fetch (top/new/ask/show)")] = "top",
         num_stories: Annotated[int, Field(description="Number of stories to fetch", default=10, ge=1, le=30)] = 10
     ) -> list[TextContent]:
         """Get Hacker News stories by type (top, new, ask, show)."""
         try:
+            logger.info(f"Getting HN stories: type={story_type}, count={num_stories}")
             hn = HackerNewsAPI()
             stories = await hn.get_stories(story_type, num_stories)
             
@@ -135,13 +152,20 @@ def register_hn_tools(mcp):
                 ErrorData(code=INTERNAL_ERROR, message=f"Error fetching HN stories: {str(e)}")
             )
 
-    @mcp.tool
+    SearchHNStoriesToolDescription = RichToolDescription(
+        description="Search Hacker News stories by keyword.",
+        use_when="Performs a full-text search across Hacker News stories and returns matching results with relevance ranking.",
+        side_effects="Makes API calls to Hacker News Algolia API and may be subject to rate limiting.",
+    )
+
+    @mcp.tool(description=SearchHNStoriesToolDescription.model_dump_json())
     async def search_hn_stories(
         query: Annotated[str, Field(description="Search query for stories")],
         num_results: Annotated[int, Field(description="Number of results to fetch", default=10, ge=1, le=30)] = 10
     ) -> list[TextContent]:
         """Search Hacker News stories by keyword."""
         try:
+            logger.info(f"Searching HN stories for query: {query}")
             hn = HackerNewsAPI()
             stories = await hn.search_stories(query, num_results)
             
@@ -179,13 +203,20 @@ def register_hn_tools(mcp):
                 ErrorData(code=INTERNAL_ERROR, message=f"Error searching HN stories: {str(e)}")
             )
 
-    @mcp.tool
+    GetHNUserToolDescription = RichToolDescription(
+        description="Get Hacker News user information and recent submissions.",
+        use_when="Fetches user profile information including karma, creation date, and recent story submissions.",
+        side_effects="Makes API calls to Hacker News Algolia API and may be subject to rate limiting.",
+    )
+
+    @mcp.tool(description=GetHNUserToolDescription.model_dump_json())
     async def get_hn_user(
         username: Annotated[str, Field(description="Hacker News username")],
         num_stories: Annotated[int, Field(description="Number of user's stories to fetch", default=5, ge=1, le=20)] = 5
     ) -> list[TextContent]:
         """Get Hacker News user information and recent submissions."""
         try:
+            logger.info(f"Getting HN user info for: {username}")
             hn = HackerNewsAPI()
             user_info = await hn.get_user(username)
             stories = await hn.get_stories("new", num_stories, 0)  # Get recent stories

@@ -15,6 +15,17 @@ import tempfile
 import os
 from urllib.parse import quote_plus
 from pathlib import Path
+import openai
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str]
 
 try:
     import yt_dlp
@@ -127,6 +138,7 @@ class YouTubeDownloader:
             }
             
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                prepared_query = cls._prepare_query(query)
                 info = ydl.extract_info(prepared_query, download=False)
                 
                 # Handle search results if query wasn't a direct URL
@@ -359,13 +371,23 @@ class MusicAPI:
 def register_music_tools(mcp):
     """Register music-related tools with the MCP server."""
     
-    @mcp.tool
+    logger.info("Registering music tools...")
+    
+    GetSongLinksToolDescription = RichToolDescription(
+        description="Get real links and information for songs from various music platforms.",
+        use_when="When you need to find a song on multiple platforms like Spotify, YouTube, Apple Music, and get lyrics.",
+        side_effects="Makes API calls to various music services and web scraping for platform-specific links.",
+    )
+    
+    @mcp.tool(description=GetSongLinksToolDescription.model_dump_json())
     async def get_song_name_links(
-        song_name: Annotated[str, Field(description="Name of the song to search for")],
+        query: Annotated[str, Field(description="Name of the song to search for")],
         artist: Annotated[str, Field(description="Artist name (optional)", default="")] = ""
     ) -> list[TextContent]:
         """Get real links and information for songs from various music platforms."""
         try:
+            song_name = query  # Map query to song_name for compatibility
+            logger.info(f"Searching for song: {song_name} by {artist}")
             search_query = f"{song_name} {artist}".strip()
             
             # Search YouTube Music with yt-dlp
@@ -429,6 +451,7 @@ def register_music_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_song_name_links: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -436,7 +459,13 @@ def register_music_tools(mcp):
                 )
             )
 
-    @mcp.tool
+    MusicRecommendationsToolDescription = RichToolDescription(
+        description="Get real music recommendations using web scraping and API calls.",
+        use_when="When you need personalized music suggestions based on genre, mood, or similar artists.",
+        side_effects="Makes API calls to music recommendation services and web scraping for music discovery.",
+    )
+
+    @mcp.tool(description=MusicRecommendationsToolDescription.model_dump_json())
     async def get_music_recommendations(
         genre: str = "",
         mood: str = "",
@@ -444,6 +473,7 @@ def register_music_tools(mcp):
     ) -> list[TextContent]:
         """Get real music recommendations using web scraping and API calls."""
         try:
+            logger.info(f"Getting music recommendations for genre={genre}, mood={mood}, artist={artist}")
             # Build search query
             search_terms = []
             if genre:
@@ -514,6 +544,7 @@ def register_music_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_music_recommendations: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -521,13 +552,20 @@ def register_music_tools(mcp):
                 )
             )
     
-    @mcp.tool
+    YouTubeMusicStreamToolDescription = RichToolDescription(
+        description="Search for a song and extract its audio stream information for music streaming.",
+        use_when="When you need to get streaming URLs and information for YouTube music content.",
+        side_effects="Uses yt-dlp to extract audio streams from YouTube and may be subject to rate limiting.",
+    )
+
+    @mcp.tool(description=YouTubeMusicStreamToolDescription.model_dump_json())
     async def get_youtube_music_stream(
         song_name: Annotated[str, Field(description="Name of the song to search for and stream")],
         quality: Annotated[str, Field(description="Audio quality preference: 'best', 'medium', 'low'", default="best")] = "best"
     ) -> list[TextContent]:
         """Search for a song and extract its audio stream information for music streaming."""
         try:
+            logger.info(f"Getting YouTube music stream for: {song_name} (quality: {quality})")
             if not YouTubeDownloader.is_available():
                 return [TextContent(type="text", text="❌ **Error:** yt-dlp or ffmpeg not available. Please install required dependencies.")]
             
@@ -636,10 +674,11 @@ wget -O "audio.{audio_format}" "{audio_url}"
 
 *🔴 Live audio stream for "{song_name}"*
             """
-            
+            print(result_text)  # For debugging
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_youtube_music_stream: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -647,7 +686,13 @@ wget -O "audio.{audio_format}" "{audio_url}"
                 )
             )
 
-    @mcp.tool
+    SearchAndStreamMusicToolDescription = RichToolDescription(
+        description="Search for music on YouTube and get streaming information.",
+        use_when="When you need to search for music and get both search results and streaming URLs in one request.",
+        side_effects="Uses yt-dlp to search and extract streaming information from YouTube and may be subject to rate limiting.",
+    )
+
+    @mcp.tool(description=SearchAndStreamMusicToolDescription.model_dump_json())
     async def search_and_stream_music(
         query: Annotated[str, Field(description="Search query for music (song name, artist, etc.)")],
         include_streams: Annotated[bool, Field(description="Include stream URLs for top results", default=True)] = True
@@ -725,6 +770,7 @@ pip install yt-dlp
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in search_and_stream_music: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -732,7 +778,13 @@ pip install yt-dlp
                 )
             )
 
-    @mcp.tool
+    DownloadYouTubeAudioToolDescription = RichToolDescription(
+        description="Search for a song and download its audio.",
+        use_when="When you need to download audio files from YouTube for offline use.",
+        side_effects="Uses yt-dlp to download and convert YouTube videos to audio files, creates temporary files on disk.",
+    )
+
+    @mcp.tool(description=DownloadYouTubeAudioToolDescription.model_dump_json())
     async def download_youtube_audio(
         song_name: Annotated[str, Field(description="Name of the song to search for and download")],
         output_format: Annotated[str, Field(description="Audio format: 'mp3', 'wav', 'aac'", default="mp3")] = "mp3"
@@ -846,6 +898,7 @@ mpv "{file_path}"
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in download_youtube_audio: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,

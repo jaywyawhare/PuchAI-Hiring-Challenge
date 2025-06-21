@@ -1,42 +1,45 @@
 """
-Utility functions for the MCP server.
+Content fetching service for web scraping and content extraction.
 """
 import markdownify
 import readabilipy
-from pathlib import Path
+from typing import Tuple
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR
 from ..config import REQUEST_TIMEOUT, USER_AGENT
+from ..models.base import BaseAPIClient
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class ContentFetcher:
+class ContentFetcher(BaseAPIClient):
     """
     A utility class for fetching and processing webpage content.
     """
     
-    @classmethod
+    def __init__(self):
+        super().__init__(timeout=REQUEST_TIMEOUT)
+    
     async def fetch_url(
-        cls,
+        self,
         url: str,
         user_agent: str = USER_AGENT,
         force_raw: bool = False,
-    ) -> tuple[str, str]:
+    ) -> Tuple[str, str]:
         """
         Fetch the URL and return the content in a form ready for the LLM, as well as a prefix string with status information.
         """
         from httpx import AsyncClient, HTTPError
 
-        logger.info(f"Fetching URL: {url}")
+        self.log_info(f"Fetching URL: {url}")
         async with AsyncClient() as client:
             try:
                 response = await client.get(
                     url,
                     follow_redirects=True,
                     headers={"User-Agent": user_agent},
-                    timeout=REQUEST_TIMEOUT,
+                    timeout=self.timeout,
                 )
             except HTTPError as e:
                 raise McpError(
@@ -60,7 +63,7 @@ class ContentFetcher:
         )
 
         if is_page_html and not force_raw:
-            return cls.extract_content_from_html(page_raw), ""
+            return self.extract_content_from_html(page_raw), ""
 
         return (
             page_raw,
@@ -81,34 +84,9 @@ class ContentFetcher:
             html, use_readability=True
         )
         if not ret["content"]:
-            return "<error>Page failed to be simplified from HTML</error>"
+            return "<e>Page failed to be simplified from HTML</e>"
         content = markdownify.markdownify(
             ret["content"],
             heading_style=markdownify.ATX,
         )
         return content
-
-
-def load_resume() -> str:
-    """Load resume from file."""
-    from ..config import RESUME_PATH
-    
-    logger.info(f"Loading resume from: {RESUME_PATH}")
-    if not RESUME_PATH.exists():
-        raise McpError(
-            ErrorData(
-                code=INTERNAL_ERROR,
-                message="Resume file not found. Please create resume.md"
-            )
-        )
-    
-    resume_content = RESUME_PATH.read_text(encoding='utf-8')
-    if not resume_content.strip():
-        raise McpError(
-            ErrorData(
-                code=INTERNAL_ERROR,
-                message="Resume file is empty"
-            )
-        )
-    
-    return resume_content

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.bearer import BearerAuthProvider, RSAKeyPair
 import markdownify
@@ -11,6 +11,7 @@ import readabilipy
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import logging
 
 # Import tool registration functions
 from src.tools.core_tools import register_core_tools
@@ -23,16 +24,23 @@ from src.tools.hn_tools import register_hn_tools
 
 load_dotenv()
 
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 TOKEN = os.getenv("TOKEN")
 MY_NUMBER = os.getenv("MY_NUMBER")
 
 if not TOKEN or not MY_NUMBER:
     raise ValueError("TOKEN and MY_NUMBER environment variables must be set")
 
+logger.info("Environment variables loaded successfully")
+
 class RichToolDescription(BaseModel):
+    """Rich tool description model for MCP server compatibility."""
     description: str
     use_when: str
-    side_effects: str | None
+    side_effects: Optional[str]
 
 
 class SimpleBearerAuthProvider(BearerAuthProvider):
@@ -149,6 +157,8 @@ mcp = FastMCP(
     auth=SimpleBearerAuthProvider(TOKEN),
 )
 
+logger.info("FastMCP server initialized")
+
 register_core_tools(mcp)
 register_web_tools(mcp)
 register_railway_tools(mcp)
@@ -156,6 +166,8 @@ register_music_tools(mcp)
 register_weather_tools(mcp)
 register_arxiv_tools(mcp)
 register_hn_tools(mcp)  # Add HN tools registration
+
+logger.info("All tools registered successfully")
 
 
 async def main():
@@ -169,6 +181,7 @@ async def main():
     - YouTube music streaming and multi-platform music search
     - WhatsApp chatbot integration ready
     """
+    logger.info("Starting Chup AI MCP server...")
 
     await mcp.run_async(
         "streamable-http",
@@ -179,5 +192,6 @@ async def main():
 
 if __name__ == "__main__":
     import asyncio
-
+    
+    logger.info("Chup AI MCP Server starting up...")
     asyncio.run(main())

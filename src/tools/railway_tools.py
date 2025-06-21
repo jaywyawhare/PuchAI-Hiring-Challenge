@@ -12,6 +12,17 @@ import re
 from datetime import datetime
 from bs4 import BeautifulSoup
 import random
+import openai
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str]
 
 
 class RailwayAPI:
@@ -140,6 +151,7 @@ class RailwayAPI:
                 response.raise_for_status()
                 return cls._parse_pnr_status(response.text)
             except Exception as e:
+                logger.error(f"Error in get_pnr_status: {e}")
                 raise McpError(
                     ErrorData(
                         code=INTERNAL_ERROR,
@@ -402,13 +414,22 @@ class RailwayAPI:
 def register_railway_tools(mcp):
     """Register railway-related tools with the MCP server."""
     
-    @mcp.tool
+    logger.info("Registering railway tools...")
+    
+    LiveTrainStatusToolDescription = RichToolDescription(
+        description="Get live status and detailed information of a train.",
+        use_when="When you need to check the current location, delays, and status updates for a running train from Indian Railways.",
+        side_effects="Makes HTTP requests to railway data sources to fetch real-time train information.",
+    )
+    
+    @mcp.tool(description=LiveTrainStatusToolDescription.model_dump_json())
     async def get_live_train_status(
         train_number: Annotated[str, Field(description="Train number (e.g., 12345)")],
         date: Annotated[str, Field(description="Date in YYYY-MM-DD format", default="")] = ""
     ) -> list[TextContent]:
         """Get live status and detailed information of a train."""
         try:
+            logger.info(f"Getting live train status for train {train_number}")
             if not date:
                 date = datetime.now().strftime("%Y-%m-%d")
             
@@ -452,6 +473,7 @@ def register_railway_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_live_train_status: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -459,7 +481,13 @@ def register_railway_tools(mcp):
                 )
             )
 
-    @mcp.tool
+    TrainsBetweenStationsToolDescription = RichToolDescription(
+        description="Get all trains running between two stations.",
+        use_when="When you need to find trains with schedules and timing information for travel between two specific railway stations.",
+        side_effects="Makes HTTP requests to railway data sources to fetch train route information.",
+    )
+
+    @mcp.tool(description=TrainsBetweenStationsToolDescription.model_dump_json())
     async def get_trains_between_stations(
         from_station: Annotated[str, Field(description="Source station code (e.g., NDLS, BCT)")],
         to_station: Annotated[str, Field(description="Destination station code (e.g., BCT, NDLS)")],
@@ -467,6 +495,7 @@ def register_railway_tools(mcp):
     ) -> list[TextContent]:
         """Get all trains running between two stations."""
         try:
+            logger.info(f"Getting trains between {from_station} and {to_station}")
             # Get trains between stations
             trains_data = await RailwayAPI.get_trains_between_stations(from_station, to_station)
             
@@ -508,6 +537,7 @@ def register_railway_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_trains_between_stations: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -515,12 +545,19 @@ def register_railway_tools(mcp):
                 )
             )
 
-    @mcp.tool
+    PNRStatusToolDescription = RichToolDescription(
+        description="Check PNR status for a railway booking.",
+        use_when="When you need to retrieve current booking status, passenger information, seat details, and journey information from a PNR database.",
+        side_effects="Makes HTTP requests to railway booking systems to fetch PNR information.",
+    )
+
+    @mcp.tool(description=PNRStatusToolDescription.model_dump_json())
     async def get_pnr_status_tool(
         pnr_number: Annotated[str, Field(description="10-digit PNR number")]
     ) -> list[TextContent]:
         """Check PNR status for a railway booking."""
         try:
+            logger.info(f"Checking PNR status for: {pnr_number}")
             if len(pnr_number) != 10 or not pnr_number.isdigit():
                 raise McpError(
                     ErrorData(
@@ -572,6 +609,7 @@ def register_railway_tools(mcp):
         except Exception as e:
             if isinstance(e, McpError):
                 raise
+            logger.error(f"Error in get_pnr_status_tool: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -579,12 +617,19 @@ def register_railway_tools(mcp):
                 )
             )
 
-    @mcp.tool
+    TrainScheduleToolDescription = RichToolDescription(
+        description="Get complete schedule/route for a train with all stations.",
+        use_when="When you need the full train route including all stops, arrival/departure times, platform numbers, and distance information.",
+        side_effects="Makes HTTP requests to railway data sources to fetch complete train schedule information.",
+    )
+
+    @mcp.tool(description=TrainScheduleToolDescription.model_dump_json())
     async def get_train_schedule_tool(
         train_number: Annotated[str, Field(description="Train number (e.g., 12345)")]
     ) -> list[TextContent]:
         """Get complete schedule/route for a train with all stations."""
         try:
+            logger.info(f"Getting train schedule for train {train_number}")
             # Get train route
             route_data = await RailwayAPI.get_train_route(train_number)
             
@@ -625,6 +670,7 @@ def register_railway_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_train_schedule: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -632,12 +678,19 @@ def register_railway_tools(mcp):
                 )
             )
 
-    @mcp.tool
+    StationLiveStatusToolDescription = RichToolDescription(
+        description="Get live status of all trains currently at or arriving at a station.",
+        use_when="When you need real-time information about trains at a specific station including expected arrival/departure times, platforms, and delays.",
+        side_effects="Makes HTTP requests to railway data sources to fetch live station information.",
+    )
+
+    @mcp.tool(description=StationLiveStatusToolDescription.model_dump_json())
     async def get_station_live_status(
         station_code: Annotated[str, Field(description="Station code (e.g., NDLS, BCT, AGC)")]
     ) -> list[TextContent]:
         """Get live status of all trains currently at or arriving at a station."""
         try:
+            logger.info(f"Getting live station status for {station_code}")
             # Get station live status
             station_data = await RailwayAPI.get_station_live_status(station_code)
             
@@ -675,6 +728,7 @@ def register_railway_tools(mcp):
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_station_live_status: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,

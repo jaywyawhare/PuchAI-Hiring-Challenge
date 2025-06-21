@@ -9,9 +9,23 @@ import httpx
 import json
 import re
 from urllib.parse import urlparse, urljoin
+import openai
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str] = None
+
 
 def register_web_tools(mcp):
     """Register web-related tools with the MCP server."""
+    
+    logger.info("Registering web tools...")
     
     def validate_url(url: str) -> tuple[bool, str]:
         """Validate and clean URL."""
@@ -34,7 +48,13 @@ def register_web_tools(mcp):
             response.extend([f"- {s}" for s in suggestions])
         return [TextContent(type="text", text="\n".join(response))]
 
-    @mcp.tool
+    FetchToolDescription = RichToolDescription(
+        description="Fetch a URL and return its content with optional truncation.",
+        use_when="When you need to retrieve and process content from a specific URL, summarize web articles, or extract information from websites.",
+        side_effects="Makes an HTTP request to the specified URL and may be subject to rate limiting or blocking by the target website.",
+    )
+
+    @mcp.tool(description=FetchToolDescription.model_dump_json())
     async def fetch(
         url: Annotated[AnyUrl, Field(description="URL to fetch")],
         max_length: Annotated[int, Field(default=5000, gt=0, lt=1000000)] = 5000,
@@ -44,6 +64,7 @@ def register_web_tools(mcp):
         """Fetch a URL and return its content."""
         from ..utils.helpers import ContentFetcher
         
+        logger.info(f"Fetching URL: {url}")
         url_str = str(url).strip()
         is_valid, url_or_error = validate_url(url_str)
         if not is_valid:
@@ -106,13 +127,20 @@ def register_web_tools(mcp):
                 "Try using search_information_on_internet instead"
             ])
 
-    @mcp.tool
+    SearchInternetToolDescription = RichToolDescription(
+        description="Search the internet for information using DuckDuckGo API.",
+        use_when="When you need to find current information, news, or general knowledge from the internet that isn't available in a specific URL.",
+        side_effects="Makes API calls to DuckDuckGo search service and may be subject to rate limiting.",
+    )
+
+    @mcp.tool(description=SearchInternetToolDescription.model_dump_json())
     async def search_information_on_internet(
         query: Annotated[str, Field(description="Search query to look up on the internet")],
         max_results: Annotated[int, Field(default=5, description="Maximum number of results to return", ge=1, le=10)] = 5
     ) -> list[TextContent]:
         """Search for information on the internet using DuckDuckGo."""
         try:
+            logger.info(f"Searching internet for: {query}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     "https://api.duckduckgo.com/",
@@ -190,6 +218,7 @@ def register_web_tools(mcp):
                 return [TextContent(type="text", text=f"Search results for '{query}':\n\n" + "\n\n".join(sections))]
                 
         except httpx.TimeoutError:
+            logger.error("Search request timed out")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -197,6 +226,7 @@ def register_web_tools(mcp):
                 )
             )
         except Exception as e:
+            logger.error(f"Error in search_information_on_internet: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -204,9 +234,13 @@ def register_web_tools(mcp):
                 )
             )
 
-    @mcp.tool(
-        description="Get comprehensive help information about Chup AI's available tools and capabilities."
+    HelpMenuToolDescription = RichToolDescription(
+        description="Display comprehensive help information for all available tools.",
+        use_when="User requests help or information about available features.",
+        side_effects="Returns a formatted help menu with all tools and capabilities.",
     )
+
+    @mcp.tool(description=HelpMenuToolDescription.model_dump_json())
     async def get_help_menu() -> list[TextContent]:
         """Get comprehensive help information about Chup AI's available tools and capabilities."""
         help_text = """

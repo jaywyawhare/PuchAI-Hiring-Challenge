@@ -2,7 +2,7 @@
 Weather tools for fetching current weather and forecasts by location.
 Uses Open-Meteo API for real-time weather data.
 """
-from typing import Annotated, Dict, Any, Tuple
+from typing import Annotated, Dict, Any, Tuple, Optional
 from pydantic import Field
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
@@ -12,6 +12,18 @@ from timezonefinder import TimezoneFinder
 import pytz
 from datetime import datetime
 from dateutil.parser import isoparse
+import openai
+import logging
+import pytz
+
+logger = logging.getLogger(__name__)
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str]
 
 class WeatherError(Exception):
     """Custom exception for weather-related errors"""
@@ -111,12 +123,21 @@ class WeatherAPI:
 def register_weather_tools(mcp):
     """Register weather-related tools with the MCP server."""
 
-    @mcp.tool
+    logger.info("Registering weather tools...")
+
+    WeatherToolDescription = RichToolDescription(
+        description="Get current weather information for any location.",
+        use_when="When you need current weather conditions, temperature, humidity, and wind information for a specific location.",
+        side_effects="Makes API calls to Open-Meteo weather service to fetch real-time weather data.",
+    )
+
+    @mcp.tool(description=WeatherToolDescription.model_dump_json())
     async def get_weather(
         location: Annotated[str, Field(description="Location name (city, address)")],
     ) -> list[TextContent]:
         """Get current weather information for any location."""
         try:
+            logger.info(f"Getting weather for location: {location}")
             weather_data = await WeatherAPI.get_current_weather(location)
 
             if not weather_data.get("success"):
@@ -153,6 +174,7 @@ def register_weather_tools(mcp):
             return [TextContent(type="text", text="\n".join(lines))]
 
         except Exception as e:
+            logger.error(f"Error in get_weather: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,

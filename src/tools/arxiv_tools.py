@@ -11,6 +11,14 @@ import logging
 import feedparser
 import httpx
 from datetime import datetime, timedelta
+import openai
+
+
+class RichToolDescription(openai.BaseModel):
+    """Rich tool description model for MCP server compatibility."""
+    description: str
+    use_when: str
+    side_effects: Optional[str]
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +26,7 @@ class ArxivAPI:
     """arXiv API client with rate limiting and proper error handling."""
     
     def __init__(self):
-        self.base_url = "http://export.arxiv.org/api/query"
+        self.base_url = "https://export.arxiv.org/api/query"
         self._last_request: Optional[datetime] = None
         self._lock = asyncio.Lock()
         
@@ -178,7 +186,15 @@ class ArxivAPI:
 def register_arxiv_tools(mcp):
     """Register arXiv-related tools with the MCP server."""
     
-    @mcp.tool
+    logger.info("Registering arXiv tools...")
+    
+    SearchArxivToolDescription = RichToolDescription(
+        description="Search for academic papers on arXiv.org with advanced query support.",
+        use_when="User asks for academic papers, research, or scientific literature on specific topics.",
+        side_effects="Makes API calls to arXiv.org and may be subject to rate limiting (3 second delays between requests).",
+    )
+    
+    @mcp.tool(description=SearchArxivToolDescription.model_dump_json())
     async def search_arxiv_papers(
         query: Annotated[str, Field(description="Search query (supports advanced syntax)")],
         max_results: Annotated[int, Field(description="Maximum number of results", default=5)] = 5,
@@ -194,6 +210,7 @@ def register_arxiv_tools(mcp):
         - Category: cat:cs.AI
         """
         try:
+            logger.info(f"Searching arXiv papers for query: {query}")
             arxiv = ArxivAPI()
             papers = await arxiv.search(query, max_results)
             
@@ -247,6 +264,7 @@ Found {len(papers)} papers:
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in search_arxiv_papers: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -254,7 +272,13 @@ Found {len(papers)} papers:
                 )
             )
 
-    @mcp.tool
+    GetArxivPaperToolDescription = RichToolDescription(
+        description="Get detailed information about a specific arXiv paper by its ID.",
+        use_when="User provides a specific arXiv paper ID or asks for details about a known paper.",
+        side_effects="Makes API calls to arXiv.org and may be subject to rate limiting (3 second delays between requests).",
+    )
+
+    @mcp.tool(description=GetArxivPaperToolDescription.model_dump_json())
     async def get_arxiv_paper(
         paper_id: Annotated[str, Field(
             description="arXiv paper ID in the format YYMM.NNNNN or NNNN.NNNN (e.g., 2103.08220)")],
@@ -266,6 +290,7 @@ Found {len(papers)} papers:
         This tool only accepts valid arXiv IDs like: 2103.08220, 1234.5678
         """
         try:
+            logger.info(f"Getting arXiv paper details for ID: {paper_id}")
             # Validate arXiv ID format
             import re
             if not re.match(r'^\d{4}\.\d{4,5}(?:v\d+)?$', paper_id):
@@ -320,6 +345,7 @@ Found {len(papers)} papers:
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
+            logger.error(f"Error in get_arxiv_paper: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,

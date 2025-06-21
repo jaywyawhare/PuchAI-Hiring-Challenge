@@ -1,30 +1,59 @@
 """
 Core tools for the MCP server - Resume and Validation tools.
 """
-from typing import Annotated
+from typing import Annotated, Optional
 from pathlib import Path
 from mcp import ErrorData, McpError
-from mcp.types import INTERNAL_ERROR
-from pydantic import BaseModel
+from mcp.types import INTERNAL_ERROR, TextContent
+from ..models.base import RichToolDescription
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class RichToolDescription(BaseModel):
-    description: str
-    use_when: str
-    side_effects: str | None
+class CoreToolsManager:
+    """Manager for core tools registration."""
+    
+    @staticmethod
+    def get_resume_content() -> str:
+        """Get resume content from file."""
+        try:
+            resume_path = Path(__file__).parent.parent.parent / "resume.md"
+            return resume_path.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Error reading resume: {e}")
+            raise McpError(
+                ErrorData(
+                    code=INTERNAL_ERROR,
+                    message=f"Error reading resume: {str(e)}"
+                )
+            )
+    
+    @staticmethod
+    def create_tool_description(description: str, use_when: str, side_effects: Optional[str] = None) -> RichToolDescription:
+        """Create a tool description."""
+        return RichToolDescription(
+            description=description,
+            use_when=use_when,
+            side_effects=side_effects
+        )
 
 
 def register_core_tools(mcp):
     """Register core tools (resume, validate) with the MCP server."""
     
-    ResumeToolDescription = RichToolDescription(
+    logger.info("Registering core tools...")
+    
+    manager = CoreToolsManager()
+    
+    ResumeToolDescription = manager.create_tool_description(
         description="Serve your resume in plain markdown.",
         use_when="Puch (or anyone) asks for your resume; this must return raw markdown, no extra formatting.",
         side_effects=None,
     )
 
     @mcp.tool(description=ResumeToolDescription.model_dump_json())
-    async def resume() -> str:
+    async def resume() -> list[TextContent]:
         """
         Return your resume exactly as markdown text.
         
@@ -32,36 +61,21 @@ def register_core_tools(mcp):
         and returns its content as markdown text.
         
         Returns:
-            str: The resume content in markdown format
+            list[TextContent]: The resume content in markdown format
             
         Raises:
             McpError: If the resume file cannot be found or read
         """
         try:
-            resume_path = Path(__file__).parent.parent.parent / "resume.md"
-            if not resume_path.exists():
-                raise McpError(
-                    ErrorData(
-                        code=INTERNAL_ERROR,
-                        message="Resume file not found. Please create resume.md"
-                    )
-                )
-            
-            resume_content = resume_path.read_text(encoding='utf-8')
-            if not resume_content.strip():
-                raise McpError(
-                    ErrorData(
-                        code=INTERNAL_ERROR,
-                        message="Resume file is empty"
-                    )
-                )
-            print(f"Serving resume from {resume_path}\n")
-            print(f"Resume content:\n{resume_content}\n") 
-            return resume_content
+            logger.info("Loading resume from file...")
+            result_text = manager.get_resume_content()
+            return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
             if isinstance(e, McpError):
+                logger.error(f"Error in resume: {e.data.message}")
                 raise
+            logger.error(f"Error in resume: {str(e)}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
@@ -69,13 +83,27 @@ def register_core_tools(mcp):
                 )
             )
 
-    @mcp.tool
-    async def validate() -> str:
+    ValidateToolDescription = manager.create_tool_description(
+        description="Validate the MCP server configuration.",
+        use_when="This tool is required for Puch AI system compatibility.",
+        side_effects="Returns the configured phone number for validation.",
+    )
+
+    @mcp.tool(description=ValidateToolDescription.model_dump_json())
+    async def validate() -> list[TextContent]:
         """
-        NOTE: This tool must be present in an MCP server used by puch.
+        Validate the MCP server configuration.
+
+        This tool is required for Puch AI system compatibility.
+        Returns the configured phone number for validation.
+
+        Returns:
+            list[TextContent]: The configured phone number
         """
+        logger.info("Validating MCP server configuration...")
         from ..config import MY_NUMBER
-        return MY_NUMBER
+        logger.info("Validation completed successfully")
+        return [TextContent(type="text", text=MY_NUMBER.strip())]
 
     HelpMenuDescription = RichToolDescription(
         description="Display comprehensive help menu for Chup AI with all available tools and features.",
@@ -84,13 +112,14 @@ def register_core_tools(mcp):
     )
 
     @mcp.tool(description=HelpMenuDescription.model_dump_json())
-    async def get_help_menu() -> str:
+    async def get_help_menu() -> list[TextContent]:
         """
         Display comprehensive help menu for Chup AI - Intelligent Assistant for Puch AI.
         
         Returns a well-formatted menu showing all available tools organized by category,
         optimized for WhatsApp chatbot interactions.
         """
+        logger.info("Generating help menu...")
         help_text = """
 🤖 **Chup AI - Intelligent Assistant for Puch AI**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -173,4 +202,4 @@ Your intelligent assistant powered by Puch AI technology, optimized for WhatsApp
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚀 **Chup AI** - Built with ❤️ for Puch AI WhatsApp Bot
         """
-        return help_text.strip()
+        return [TextContent(type="text", text=help_text.strip())]

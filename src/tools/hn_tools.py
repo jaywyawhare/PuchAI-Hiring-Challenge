@@ -10,6 +10,7 @@ import httpx
 import logging
 from datetime import datetime
 from urllib.parse import urlencode
+import openai
 from ..utils.helpers import translate_to_english
 
 logger = logging.getLogger(__name__)

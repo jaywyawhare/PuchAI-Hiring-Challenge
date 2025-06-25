@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import logging
 import feedparser
 import httpx
+import openai
 from ..utils.helpers import translate_to_english
 
 

@@ -246,94 +246,35 @@ def register_web_tools(mcp):
         help_text = """
 # 🤖 Chup AI - WhatsApp Assistant Help Menu
 
-Hi! I'm **Chup AI**, your intelligent WhatsApp assistant. Here's everything I can help you with:
-
-## � About Me  
-- **`resume()`** - Get Arinjay's professional resume and background
-- **`validate()`** - System validation tool for Chup AI
-- **`get_help_menu()`** - Show this help menu anytime
+Hi! I'm **Chup AI**, your intelligent WhatsApp assistant. Here's how I can help:
 
 ## 🌐 Web & Information Tools
-- **`fetch(url)`** - Get content from any website, article, or webpage
-  💡 *Just send me a link and I'll summarize it for you!*
-  
-- **`search_information_on_internet(query)`** - Search the internet for information
-  💡 *Ask me anything: "What's the weather in Mumbai?" or "Latest news about AI"*
+• Get content from any website or article 
+• Search the internet for information
+• Summarize web pages automatically
+• Extract key information from links
 
 ## 🚂 Indian Railway Tools (Live Data)
-- **`get_live_train_status(train_number)`** - Get real-time train information
-  💡 *Example: "Check train 12345 status"*
-  
-- **`get_trains_between_stations(from_station, to_station)`** - Find trains between cities
-  💡 *Example: "Trains from Delhi to Mumbai" (use station codes like NDLS, BCT)*
-  
-- **`get_pnr_status_tool(pnr_number)`** - Check your PNR booking status
-  💡 *Just send your 10-digit PNR number*
-  
-- **`get_train_schedule_tool(train_number)`** - Get complete train route and timings
-  💡 *See all stations and arrival/departure times*
-  
-- **`get_station_live_status(station_code)`** - Live status of all trains at a station
-  💡 *Check what's happening at any railway station*
+• Check real-time train locations and status
+• Find trains running between stations
+• View PNR booking status
+• Get complete train schedules
+• See live station updates
 
-## 🎵 Music & Entertainment Tools
-- **`get_song_name_links(song_name, artist)`** - Find songs on all platforms
-  💡 *Get Spotify, YouTube, Apple Music links for any song*
-  
-- **`get_music_recommendations(genre, mood, artist)`** - Get personalized music suggestions
-  💡 *"Recommend chill songs" or "Songs like Arijit Singh"*
+## 🎵 Music & Entertainment 
+• Find songs across streaming platforms
+• Get personalized music suggestions
+• Stream audio from YouTube videos
+• Download YouTube audio
+• Search and play music
 
-- **`get_youtube_music_stream(video_url)`** - Get audio streams from YouTube videos
-  💡 *Convert YouTube videos to audio for streaming*
+## 💡 Quick Tips
+• Just share any link to get its summary
+• Use natural language to search
+• Be specific with train numbers/stations
+• Ask follow-up questions - I understand context!
 
-- **`search_and_stream_music(query)`** - Search and stream music from YouTube
-  💡 *Find and get streaming links for any song*
-
-- **`download_youtube_audio(video_url)`** - Download audio from YouTube
-  💡 *Save YouTube videos as audio files*
-
-## 🎯 How to Use Chup AI on WhatsApp
-
-**For Quick Info:**
-- "Show me Arinjay's resume"
-- "Search for latest AI news"  
-- "Check train 12951 status"
-
-**For Links:**
-- Send any website URL and I'll summarize it
-- "Find Bohemian Rhapsody on all platforms"
-
-**For Travel:**
-- "Trains from NDLS to BCT tomorrow"
-- "PNR status 1234567890"
-- "Live status of NDLS station"
-
-**For Music:**
-- "Recommend sad songs"
-- "Get YouTube link for this song"
-- "Songs by Kishore Kumar"
-
-## ✨ Smart Features
-- **Live Railway Data** - Real-time info from Indian Railways
-- **Multi-Platform Music** - Spotify, YouTube, Apple Music, etc.
-- **Smart Web Processing** - Clean, readable content from any website
-- **WhatsApp Optimized** - Responses formatted for mobile messaging
-- **YouTube Integration** - Stream, download, and convert videos to audio
-
-## � Security & Privacy
-- Secure bearer token authentication
-- No personal data stored
-- All railway data from official sources
-- Music links from legitimate platforms
-
-## � Pro Tips for WhatsApp Users
-- Send clear, specific requests for better results
-- Use station codes (NDLS, BCT) for railway queries
-- Share direct links for website content
-- Ask follow-up questions - I understand context!
-
-**I'm here to make your WhatsApp experience smarter and more helpful! 🚀**
-
-*Chup AI Version 1.0.0 | Powered by PuchAI | Optimized for WhatsApp*
-        """
-        return [TextContent(type="text", text=help_text.strip())]
+*🔴 Live data powered by official APIs*
+"""
+        result_text = help_text.strip()
+        return [TextContent(type="text", text=result_text.strip())]

@@ -171,7 +171,8 @@ def register_weather_tools(mcp):
             lines.append("")
             lines.append(f"*Last Updated: {current['time']}*")
 
-            return [TextContent(type="text", text="\n".join(lines))]
+            result_text = "\n".join(lines)
+            return [TextContent(type="text", text=result_text.strip())]
 
         except Exception as e:
             logger.error(f"Error in get_weather: {e}")

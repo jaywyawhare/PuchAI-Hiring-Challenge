@@ -1,12 +1,13 @@
 """
 Core tools for the MCP server - Resume and Validation tools.
 """
-from typing import Annotated, Optional
+import logging
+from typing import Annotated, Optional, List
 from pathlib import Path
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
 from ..models.base import RichToolDescription
-import logging
+from .scheme_tools import register_scheme_tools
 
 logger = logging.getLogger(__name__)
 
@@ -21,17 +22,12 @@ class CoreToolsManager:
             resume_path = Path(__file__).parent.parent.parent / "resume.md"
             return resume_path.read_text(encoding="utf-8")
         except Exception as e:
-            logger.error(f"Error reading resume: {e}")
-            raise McpError(
-                ErrorData(
-                    code=INTERNAL_ERROR,
-                    message=f"Error reading resume: {str(e)}"
-                )
-            )
-    
+            logger.error(f"Failed to read resume: {e}")
+            raise McpError(ErrorData(code=INTERNAL_ERROR, message=str(e)))
+
     @staticmethod
     def create_tool_description(description: str, use_when: str, side_effects: Optional[str] = None) -> RichToolDescription:
-        """Create a tool description."""
+        """Create a rich tool description."""
         return RichToolDescription(
             description=description,
             use_when=use_when,
@@ -40,19 +36,20 @@ class CoreToolsManager:
 
 
 def register_core_tools(mcp):
-    """Register core tools (resume, validate) with the MCP server."""
+    """Register all core tools with the MCP server."""
     
     logger.info("Registering core tools...")
     
     manager = CoreToolsManager()
     
-    ResumeToolDescription = manager.create_tool_description(
+    # Create rich descriptions for tools
+    resume_desc = manager.create_tool_description(
         description="Serve your resume in plain markdown.",
         use_when="Puch (or anyone) asks for your resume; this must return raw markdown, no extra formatting.",
         side_effects=None,
     )
 
-    @mcp.tool(description=ResumeToolDescription.model_dump_json())
+    @mcp.tool(description=resume_desc.model_dump_json())
     async def resume() -> list[TextContent]:
         """
         Return your resume exactly as markdown text.
@@ -121,85 +118,136 @@ def register_core_tools(mcp):
         """
         logger.info("Generating help menu...")
         help_text = """
-🤖 **Chup AI - Intelligent Assistant for Puch AI**
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 **Welcome to Chup AI!** 
+Your intelligent WhatsApp assistant with smart tools and live data.
 
-🎯 **Welcome to Chup AI!** 
-Your intelligent assistant powered by Puch AI technology, optimized for WhatsApp chatbot integration.
+📋 **What I Can Do:**
 
-📋 **Available Tools & Commands:**
-
-**🔧 Core Services:**
-• `resume()` - Get developer's resume in markdown
-• `validate()` - System validation (required by Puch AI)
-• `get_help_menu()` - Show this help menu
+**📝 Basic Functions:**
+• Show my developer's resume 
+• Share my system credentials
+• Display this help menu
 
 **🌐 Web Tools:**
-• `fetch(url, max_length, start_index, raw)` - Fetch and process web content
-• `search_information_on_internet(query, max_results)` - Search web using DuckDuckGo
+• Get content from any website
+• Search the internet for information
 
-**🚆 Railway Services (🔴 LIVE DATA):**
-• `get_live_train_status(train_number, date)` - Real-time train status
-• `get_trains_between_stations(from_station, to_station, date)` - Find trains between stations
-• `get_pnr_status_tool(pnr_number)` - Check PNR booking status
-• `get_train_schedule_tool(train_number)` - Complete train route info
-• `get_station_live_status(station_code)` - Live station status
+**🚆 Railway Info (Live Data):**
+• Check real-time train status
+• Find trains between stations
+• Check PNR booking status
+• View complete train schedules
+• See live station updates 
 
 **🎵 Music & Entertainment:**
-• `get_song_name_links(song_name, artist)` - Multi-platform music links
-• `get_music_recommendations(genre, mood, artist)` - Personalized recommendations
-• `get_youtube_music_stream(video_url, quality)` - Extract YouTube audio streams
-• `search_and_stream_music(query, include_streams)` - Search & stream music
-• `download_youtube_audio(video_url, output_format)` - Download YouTube audio
+• Find songs across platforms
+• Get music recommendations
+• Stream YouTube audio
+• Search and play music
+• Download YouTube audio
 
-**📚 Academic Tools:**
-• `search_arxiv_papers(query, max_results, include_abstracts)` - Search papers on arXiv
-  Example: search_arxiv_papers('ti:"neural networks" AND au:"hinton"')
-• `get_arxiv_paper(paper_id)` - Get paper details by ID (e.g., 2103.08220)
+**📚 Academic Research:**
+• Search academic papers
+• Get detailed paper info
+• Access arXiv database
+• Perform deep research with citation analysis
 
-**📰 Hacker News Tools:**
-• `get_hn_stories(story_type, num_stories)` - Get stories by type:
-  - Types: top, new, ask, show
-  - Live data from official HN API
-  - Includes points, comments, timestamps
+**🔬 Deep Research:**
+• Comprehensive topic analysis using DFS citation traversal
+• Wikipedia and arXiv source integration  
+• Reference analysis and knowledge graph construction
+• Multi-level citation exploration
 
-• `search_hn_stories(query, num_results)` - Search stories:
-  - Full-text search across all stories
-  - Filter by tags and date
-  - Sort by relevance or date
+**📰 Hacker News Feed:**
+• Browse top stories
+• Search articles
+• View user profiles
+• Read discussions
 
-• `get_hn_user(username, num_stories)` - User profiles:
-  - Account info and karma
-  - Recent submissions
-  - About text and profile links
+**🌤️ Weather Updates:**
+• Get current conditions
+• See hourly forecasts
+• Check multiple locations
 
-• `get_item_details(item_id)` - Detailed item view:
-  - Full story/comment text
-  - Nested comments
-  - Rich metadata
-
-**🎯 Key Features:**
-✅ Real API integration (no mock data)
-✅ Live Indian Railway data from erail.in
-✅ YouTube music streaming with yt-dlp + ffmpeg
-✅ Multi-platform music search (Spotify, Apple Music, etc.)
-✅ Smart web content processing
-✅ WhatsApp chatbot optimized
+📊 **Key Features:**
+✅ Live data from verified sources
+✅ Smart web content processing 
+✅ Multi-platform music support
+✅ WhatsApp-optimized responses
 ✅ Bearer token authentication
-✅ Production-ready with comprehensive error handling
+✅ Advanced research capabilities
 
-**💡 Usage Tips for WhatsApp:**
-• Use simple commands like: "get train status 12951"
-• Search music: "find songs by Queen"
-• Get web content: "fetch https://example.com"
-• Railway info: "trains from NDLS to BCT"
-• Academic papers: "arxiv quantum computing"
+💡 **Quick Tips:**
+• Ask in natural language
+• Share links to fetch content
+• Use station codes for trains
+• Be specific with requests
+• Try deep research for comprehensive topic analysis
 
-**🔒 Authentication:** Bearer token required
-**🌐 Server:** Running on streamable HTTP
-**⚡ Status:** Production ready for Puch AI integration
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚀 **Chup AI** - Built with ❤️ for Puch AI WhatsApp Bot
+*🔴 Always connected to live data sources*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 Chup AI - Your Intelligent WhatsApp Assistant
         """
-        return [TextContent(type="text", text=help_text.strip())]
+        result_text = help_text.strip()
+        return [TextContent(type="text", text=result_text.strip())]
+
+    available_tools_desc = manager.create_tool_description(
+        description="Get a list of all available tools and their descriptions",
+        use_when="User requests information about available features or capabilities",
+        side_effects="Returns formatted list of all registered tools and their descriptions"
+    )
+
+    @mcp.tool(description=available_tools_desc.model_dump_json())
+    async def get_available_tools() -> list[TextContent]:
+        """
+        Get a list of all available tools and their descriptions.
+        
+        Returns information about all tools available in this MCP server,
+        including scheme search, web tools, and other utilities.
+        """
+        tools_info = {
+            "Scheme Search Tools": [
+                "search_government_schemes - AI-powered semantic search for government schemes",
+                "get_scheme_categories - Get all available scheme categories",
+                "get_scheme_states - Get all available states/regions"
+            ],
+            "Web Tools": [
+                "fetch_url - Fetch and process webpage content",
+                "search_web - Search the web using DuckDuckGo"
+            ],
+            "Railway Tools": [
+                "get_train_schedule - Get Indian Railway train schedules",
+                "search_stations - Search railway stations"
+            ],
+            "Music Tools": [
+                "search_youtube_music - Search for music on YouTube",
+                "get_music_recommendations - Get music recommendations"
+            ],
+            "Weather Tools": [
+                "get_weather - Get current weather information",
+                "get_weather_forecast - Get weather forecast"
+            ],
+            "Research Tools": [
+                "search_arxiv - Search academic papers on arXiv",
+                "search_hackernews - Search Hacker News stories"
+            ]
+        }
+        
+        response_parts = ["🛠️ **Available Tools in Chup AI MCP Server:**", ""]
+        
+        for category, tools in tools_info.items():
+            response_parts.append(f"**{category}:**")
+            for tool in tools:
+                response_parts.append(f"  • {tool}")
+            response_parts.append("")
+        
+        response_parts.extend([
+            "For more details on each tool, use the help command or ask for specific functionality.",
+            "You can also use the `get_help_menu` command to see a comprehensive help menu."
+        ])
+        
+        from mcp.types import TextContent
+        return [TextContent(type="text", text="\n".join(response_parts))]
+    
+    # Register scheme search tools
+    register_scheme_tools(mcp)

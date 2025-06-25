@@ -417,9 +417,9 @@ def register_railway_tools(mcp):
     logger.info("Registering railway tools...")
     
     LiveTrainStatusToolDescription = RichToolDescription(
-        description="Get live status and detailed information of a train.",
-        use_when="When you need to check the current location, delays, and status updates for a running train from Indian Railways.",
-        side_effects="Makes HTTP requests to railway data sources to fetch real-time train information.",
+        description="Get real-time train location and status information",
+        use_when="You want to check where a train is right now, if it's running on time, or any delays",
+        side_effects="Makes HTTP requests to Indian Railways servers for live train data",
     )
     
     @mcp.tool(description=LiveTrainStatusToolDescription.model_dump_json())
@@ -481,13 +481,13 @@ def register_railway_tools(mcp):
                 )
             )
 
-    TrainsBetweenStationsToolDescription = RichToolDescription(
-        description="Get all trains running between two stations.",
-        use_when="When you need to find trains with schedules and timing information for travel between two specific railway stations.",
-        side_effects="Makes HTTP requests to railway data sources to fetch train route information.",
+    GetTrainsBetweenStationsToolDescription = RichToolDescription(
+        description="Find all trains running between two stations",
+        use_when="You want to know which trains run between specific stations and their timings",
+        side_effects="Makes HTTP requests to get train schedule data",
     )
 
-    @mcp.tool(description=TrainsBetweenStationsToolDescription.model_dump_json())
+    @mcp.tool(description=GetTrainsBetweenStationsToolDescription.model_dump_json())
     async def get_trains_between_stations(
         from_station: Annotated[str, Field(description="Source station code (e.g., NDLS, BCT)")],
         to_station: Annotated[str, Field(description="Destination station code (e.g., BCT, NDLS)")],

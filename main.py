@@ -154,18 +154,17 @@ class Fetch:
 
 mcp = FastMCP(
     "Chup AI - Intelligent Assistant for Puch AI",
-    auth=SimpleBearerAuthProvider(TOKEN),
 )
 
 logger.info("FastMCP server initialized")
 
-register_core_tools(mcp)
+register_core_tools(mcp)  # This now includes scheme tools
 register_web_tools(mcp)
 register_railway_tools(mcp)
 register_music_tools(mcp)
 register_weather_tools(mcp)
 register_arxiv_tools(mcp)
-register_hn_tools(mcp)  # Add HN tools registration
+register_hn_tools(mcp)
 
 logger.info("All tools registered successfully")
 

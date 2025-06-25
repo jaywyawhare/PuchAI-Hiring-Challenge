@@ -6,6 +6,9 @@ from typing import Annotated, Optional, Dict, List, Any
 from pydantic import Field
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
+from urllib.parse import quote_plus
+from pathlib import Path
+from ..utils.helpers import translate_to_english
 import httpx
 import json
 import re
@@ -13,8 +16,6 @@ import asyncio
 import subprocess
 import tempfile
 import os
-from urllib.parse import quote_plus
-from pathlib import Path
 import openai
 import logging
 
@@ -245,6 +246,42 @@ class MusicAPI:
     """Music API client for various music services with YouTube streaming support"""
     
     USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    
+    @classmethod
+    async def search_song(cls, song_name: str, language: str = "auto") -> Dict[str, Any]:
+        """Search for a song with language support"""
+        try:
+            # Translate song name to English if needed
+            translated_name = await translate_to_english(song_name)
+            logger.info(f"Original song name: {song_name}")
+            if translated_name != song_name:
+                logger.info(f"Translated song name: {translated_name}")
+            
+            # Search YouTube Music with yt-dlp
+            youtube_results = await YouTubeDownloader.search_youtube_music(translated_name)
+            
+            # Fallback to web scraping if yt-dlp fails
+            if not youtube_results.get("success"):
+                youtube_results = await cls.search_youtube_music_fallback(translated_name)
+            
+            results = youtube_results.get("results", [])
+            
+            # Limit results to top 5
+            if len(results) > 5:
+                results = results[:5]
+            
+            return {
+                "success": True,
+                "results": results,
+                "query": song_name,
+                "translated_query": translated_name
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Song search failed: {str(e)}"
+            }
     
     @classmethod
     async def search_youtube_music_advanced(cls, query: str) -> dict:
@@ -561,11 +598,15 @@ def register_music_tools(mcp):
     @mcp.tool(description=YouTubeMusicStreamToolDescription.model_dump_json())
     async def get_youtube_music_stream(
         song_name: Annotated[str, Field(description="Name of the song to search for and stream")],
-        quality: Annotated[str, Field(description="Audio quality preference: 'best', 'medium', 'low'", default="best")] = "best"
-    ) -> list[TextContent]:
+        quality: Annotated[str, Field(default="best", description="Audio quality preference: 'best', 'medium', 'low'")] = "best",
+        source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
+    ) -> dict:
         """Search for a song and extract its audio stream information for music streaming."""
         try:
-            logger.info(f"Getting YouTube music stream for: {song_name} (quality: {quality})")
+            # Translate song name to English if needed
+            song_name_en = await translate_to_english(song_name, source_lang)
+            logger.info(f"Searching for song: {song_name} (en: {song_name_en})")
+            
             if not YouTubeDownloader.is_available():
                 return [TextContent(type="text", text="❌ **Error:** yt-dlp or ffmpeg not available. Please install required dependencies.")]
             
@@ -577,12 +618,12 @@ def register_music_tools(mcp):
                 'extractaudio': True,
                 'noplaylist': True,
                 'max_downloads': 1,
-                'default_search': f'ytsearch1:{song_name}'  # Direct search with limit
+                'default_search': f'ytsearch1:{song_name_en}'  # Direct search with limit
             }
             
             # Get video info and stream URL directly
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"ytsearch1:{song_name}", download=False)
+                info = ydl.extract_info(f"ytsearch1:{song_name_en}", download=False)
                 
                 if not info or 'entries' not in info or not info['entries']:
                     return [TextContent(

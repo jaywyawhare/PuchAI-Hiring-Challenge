@@ -10,16 +10,15 @@ import httpx
 import logging
 from datetime import datetime
 from urllib.parse import urlencode
-import openai
+from ..utils.helpers import translate_to_english
 
+logger = logging.getLogger(__name__)
 
 class RichToolDescription(openai.BaseModel):
     """Rich tool description model for MCP server compatibility."""
     description: str
     use_when: str
     side_effects: Optional[str]
-
-logger = logging.getLogger(__name__)
 
 class HackerNewsAPI:
     """HN API client with proper error handling and rate limiting."""
@@ -68,15 +67,27 @@ class HackerNewsAPI:
         
         return await self._make_request(mapping[story_type]["endpoint"], params)
 
-    async def search_stories(self, query: str, num_results: int = 10) -> Dict:
-        """Search stories by keyword."""
-        params = {
-            "query": query,
-            "tags": "story",
-            "hitsPerPage": num_results
-        }
-        
-        return await self._make_request("search", params)
+    async def search_stories(self, query: str, language: str = "auto") -> Dict:
+        """Search stories with language support"""
+        try:
+            # Translate query to English if needed
+            translated_query = await translate_to_english(query)
+            logger.info(f"Original query: {query}")
+            if translated_query != query:
+                logger.info(f"Translated query: {translated_query}")
+                
+            params = {
+                "query": translated_query,
+                "tags": "story",
+                "hitsPerPage": 10
+            }
+            
+            return await self._make_request("search", params)
+        except Exception as e:
+            logger.error(f"Error in search_stories: {e}")
+            raise McpError(
+                ErrorData(code=INTERNAL_ERROR, message=f"Error searching stories: {str(e)}")
+            )
 
     async def get_user(self, username: str) -> Dict:
         """Get user profile information."""
@@ -161,13 +172,17 @@ def register_hn_tools(mcp):
     @mcp.tool(description=SearchHNStoriesToolDescription.model_dump_json())
     async def search_hn_stories(
         query: Annotated[str, Field(description="Search query for stories")],
-        num_results: Annotated[int, Field(description="Number of results to fetch", default=10, ge=1, le=30)] = 10
+        num_results: Annotated[int, Field(default=10, description="Number of results to fetch", ge=1, le=30)] = 10,
+        source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
     ) -> list[TextContent]:
         """Search Hacker News stories by keyword."""
         try:
-            logger.info(f"Searching HN stories for query: {query}")
+            # Translate query to English if needed
+            query_en = await translate_to_english(query, source_lang)
+            logger.info(f"Searching HN stories for: {query} (en: {query_en})")
+            
             hn = HackerNewsAPI()
-            stories = await hn.search_stories(query, num_results)
+            stories = await hn.search_stories(query_en, num_results)
             
             if not stories.get("hits"):
                 return [TextContent(type="text", text="No stories found")]

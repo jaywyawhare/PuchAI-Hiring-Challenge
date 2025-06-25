@@ -6,12 +6,11 @@ from typing import Annotated, Dict, List, Any, Optional
 from pydantic import Field
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
-import asyncio
+from datetime import datetime, timedelta
 import logging
 import feedparser
 import httpx
-from datetime import datetime, timedelta
-import openai
+from ..utils.helpers import translate_to_english
 
 
 class RichToolDescription(openai.BaseModel):
@@ -108,10 +107,17 @@ class ArxivAPI:
             "html_url": html_url
         }
 
-    async def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
-        """Search arXiv papers with advanced query syntax support."""
+    async def search(self, query: str, language: str = "auto", max_results: int = 10) -> List[Dict[str, Any]]:
+        """Search arXiv papers with language support"""
         await self._wait_for_rate_limit()
         
+        # Translate query to English if needed
+        translated_query = await translate_to_english(query)
+        logger.info(f"Original query: {query}")
+        if translated_query != query:
+            logger.info(f"Translated query: {translated_query}")
+            query = translated_query
+            
         # Convert advanced query to arXiv API format
         formatted_query = query
         if 'ti:' in query or 'au:' in query:
@@ -197,9 +203,10 @@ def register_arxiv_tools(mcp):
     @mcp.tool(description=SearchArxivToolDescription.model_dump_json())
     async def search_arxiv_papers(
         query: Annotated[str, Field(description="Search query (supports advanced syntax)")],
-        max_results: Annotated[int, Field(description="Maximum number of results", default=5)] = 5,
-        include_abstracts: Annotated[bool, Field(description="Include paper abstracts", default=False)] = False
-    ) -> list[TextContent]:
+        max_results: Annotated[int, Field(default=5, description="Maximum number of results")] = 5,
+        include_abstracts: Annotated[bool, Field(default=False, description="Include paper abstracts")] = False,
+        source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
+    ) -> list[dict]:
         """
         Search for academic papers on arXiv.org with advanced query support.
         
@@ -210,9 +217,12 @@ def register_arxiv_tools(mcp):
         - Category: cat:cs.AI
         """
         try:
-            logger.info(f"Searching arXiv papers for query: {query}")
+            # Translate query to English if needed
+            query_en = await translate_to_english(query, source_lang)
+            logger.info(f"Searching arXiv for: {query} (en: {query_en})")
+            
             arxiv = ArxivAPI()
-            papers = await arxiv.search(query, max_results)
+            papers = await arxiv.search(query_en, max_results)
             
             if not papers:
                 return [TextContent(

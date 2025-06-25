@@ -11,6 +11,7 @@ import re
 from urllib.parse import urlparse, urljoin
 import openai
 import logging
+from ..utils.helpers import translate_to_english
 
 logger = logging.getLogger(__name__)
 
@@ -136,16 +137,22 @@ def register_web_tools(mcp):
     @mcp.tool(description=SearchInternetToolDescription.model_dump_json())
     async def search_information_on_internet(
         query: Annotated[str, Field(description="Search query to look up on the internet")],
-        max_results: Annotated[int, Field(default=5, description="Maximum number of results to return", ge=1, le=10)] = 5
+        max_results: Annotated[int, Field(default=5, description="Maximum number of results to return", ge=1, le=10)] = 5,
+        source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
     ) -> list[TextContent]:
-        """Search for information on the internet using DuckDuckGo."""
+        """Search the internet with automatic language translation support."""
         try:
-            logger.info(f"Searching internet for: {query}")
+            # Translate query to English if needed
+            query_en = await translate_to_english(query, source_lang) 
+            logger.info(f"Searching for: {query} (en: {query_en})")
+
+            # Use translated query for search
+            logger.info(f"Searching internet for: {query_en}")
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.get(
                     "https://api.duckduckgo.com/",
                     params={
-                        'q': query,
+                        'q': query_en,
                         'format': 'json',
                         'no_html': '1',
                         'skip_disambig': '1'

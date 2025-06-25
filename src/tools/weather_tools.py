@@ -2,7 +2,7 @@
 Weather tools for fetching current weather and forecasts by location.
 Uses Open-Meteo API for real-time weather data.
 """
-from typing import Annotated, Dict, Any, Tuple, Optional
+from typing import Annotated, Dict, Any, Tuple, Optional, List
 from pydantic import Field
 from mcp import ErrorData, McpError
 from mcp.types import INTERNAL_ERROR, TextContent
@@ -14,7 +14,7 @@ from datetime import datetime
 from dateutil.parser import isoparse
 import openai
 import logging
-import pytz
+from ..utils.helpers import translate_to_english
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +33,14 @@ class WeatherAPI:
     """Weather API client using Open-Meteo"""
 
     @staticmethod
-    async def _get_coordinates(location: str) -> Tuple[float, float, str]:
+    async def _get_coordinates(location: str, source_lang: str = 'auto') -> Tuple[float, float, str]:
         """Get coordinates for a location name"""
         try:
+            # Translate location name to English if needed
+            location_en = await translate_to_english(location, source_lang)
+            
             async with OpenMeteo() as open_meteo:
-                search = await open_meteo.geocoding(name=location)
+                search = await open_meteo.geocoding(name=location_en)
                 if not search.results:
                     raise WeatherError(f"Location '{location}' not found")
                 result = search.results[0]
@@ -46,10 +49,10 @@ class WeatherAPI:
             raise WeatherError(f"Error getting coordinates: {str(e)}")
 
     @classmethod
-    async def get_current_weather(cls, location: str) -> Dict[str, Any]:
+    async def get_current_weather(cls, location: str, source_lang: str = 'auto') -> Dict[str, Any]:
         """Get current weather for a location"""
         try:
-            lat, lon, location_name = await cls._get_coordinates(location)
+            lat, lon, location_name = await cls._get_coordinates(location, source_lang)
 
             # Get timezone from coordinates
             tf = TimezoneFinder()
@@ -125,60 +128,56 @@ def register_weather_tools(mcp):
 
     logger.info("Registering weather tools...")
 
-    WeatherToolDescription = RichToolDescription(
+    weather_desc = RichToolDescription(
         description="Get current weather information for any location.",
         use_when="When you need current weather conditions, temperature, humidity, and wind information for a specific location.",
         side_effects="Makes API calls to Open-Meteo weather service to fetch real-time weather data.",
     )
 
-    @mcp.tool(description=WeatherToolDescription.model_dump_json())
+    @mcp.tool(description=weather_desc.model_dump_json())
     async def get_weather(
         location: Annotated[str, Field(description="Location name (city, address)")],
-    ) -> list[TextContent]:
-        """Get current weather information for any location."""
+        source_lang: Annotated[str, Field(description="Source language code (e.g., 'fr', 'es', 'de'). Use 'auto' for auto-detection.", default="auto")] = "auto"
+    ) -> List[TextContent]:
+        """Get current weather for a location in any language."""
         try:
-            logger.info(f"Getting weather for location: {location}")
-            weather_data = await WeatherAPI.get_current_weather(location)
-
-            if not weather_data.get("success"):
+            result = await WeatherAPI.get_current_weather(location, source_lang)
+            
+            if not result["success"]:
                 return [TextContent(
                     type="text",
-                    text=f"❌ **Error:** {weather_data.get('error', 'Failed to fetch weather data')}"
+                    text=f"❌ Error: {result.get('error', 'Unknown error occurred')}"
                 )]
 
-            data = weather_data["data"]
+            data = result["data"]
             current = data["current"]
-            hourly = data["hourly"]
-
-            lines = [
-                f"**🌡️ Weather in {data['location_name']} ({data['timezone']})**",
-                "",
-                "**Current Conditions:**",
-                f"• Temperature: {current['temperature_2m']}°C",
-                f"• Wind Speed: {current['wind_speed_10m']} km/h",
-                f"• Relative Humidity: {hourly['relative_humidity_2m'][0]}%",
-                "",
-                "**Hourly Forecast (until midnight):**"
+            
+            # Format the response
+            response = [
+                f"🌡️ Current weather in {data['location_name']}:",
+                f"Temperature: {current['temperature_2m']}°C",
+                f"Wind Speed: {current['wind_speed_10m']} km/h",
+                f"Timezone: {data['timezone']}",
+                f"Last Updated: {current['time']}"
             ]
 
-            for i, time_str in enumerate(hourly["time"]):
-                local_time = isoparse(time_str).astimezone(pytz.timezone(data["timezone"]))
-                lines.append(f"{local_time.strftime('%I:%M %p')}:")
-                lines.append(f"• Temperature: {hourly['temperature_2m'][i]}°C")
-                lines.append(f"• Wind Speed: {hourly['wind_speed_10m'][i]} km/h")
-                lines.append(f"• Humidity: {hourly['relative_humidity_2m'][i]}%")
+            # Add hourly forecast summary if available
+            if "hourly" in data:
+                hourly = data["hourly"]
+                if hourly["temperature_2m"]:
+                    max_temp = max(hourly["temperature_2m"])
+                    min_temp = min(hourly["temperature_2m"])
+                    response.extend([
+                        "",
+                        "Today's Forecast:",
+                        f"High: {max_temp}°C",
+                        f"Low: {min_temp}°C"
+                    ])
 
-            lines.append("")
-            lines.append(f"*Last Updated: {current['time']}*")
-
-            result_text = "\n".join(lines)
-            return [TextContent(type="text", text=result_text.strip())]
+            return [TextContent(type="text", text="\n".join(response))]
 
         except Exception as e:
-            logger.error(f"Error in get_weather: {e}")
-            raise McpError(
-                ErrorData(
-                    code=INTERNAL_ERROR,
-                    message=f"Error fetching weather data: {str(e)}"
-                )
-            )
+            return [TextContent(
+                type="text",
+                text=f"❌ Error: {str(e)}"
+            )]

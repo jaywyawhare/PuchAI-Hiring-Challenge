@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Any
 from sentence_transformers import SentenceTransformer
 import os
 from dotenv import load_dotenv
+from ..utils.helpers import translate_to_english
 
 load_dotenv()
 
@@ -57,10 +58,12 @@ class SchemeSearchService:
         is_differently_abled: Optional[bool] = None,
         age_min: Optional[int] = None,
         age_max: Optional[int] = None,
-        limit: int = 10
+        limit: int = 10,
+        source_lang: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Search schemes using vector embeddings with optional filters.
+        Automatically translates non-English queries to English.
         
         Args:
             query: Search query text
@@ -75,6 +78,7 @@ class SchemeSearchService:
             age_min: Optional minimum age
             age_max: Optional maximum age
             limit: Maximum number of results
+            source_lang: Optional source language code for better translation
             
         Returns:
             Dictionary containing search results and metadata
@@ -86,9 +90,45 @@ class SchemeSearchService:
                     "results": [],
                     "total_count": 0
                 }
+            logger.info("Starting scheme search")
+            translated_query = await translate_to_english(query)
+            if translated_query != query:
+                logger.info(f"Translated query: {translated_query}")
             
-            # Generate embedding for the query
-            query_embedding = self.model.encode(query, convert_to_tensor=False)
+            if state:
+                state = await translate_to_english(state, source_lang)
+            if category:
+                category = await translate_to_english(category, source_lang)
+            if gender:
+                gender = await translate_to_english(gender, source_lang)
+            if caste:
+                caste = await translate_to_english(caste, source_lang)
+            
+            # Store original and translated values for reference
+            original_values = {
+                'query': query,
+                'state': state,
+                'category': category,
+                'gender': gender,
+                'caste': caste
+            }
+            
+            translated_values = {
+                'query': translated_query,
+                'state': state,  # Already translated above
+                'category': category,  # Already translated above
+                'gender': gender,  # Already translated above
+                'caste': caste  # Already translated above
+            }
+            
+            # Generate embedding for the translated query
+            query_embedding = self.model.encode(translated_query, convert_to_tensor=False)
+            
+            # Log translations for debugging
+            if source_lang:
+                for key, orig in original_values.items():
+                    if orig and orig != translated_values[key]:
+                        logger.info(f"Translated {key}: {orig} -> {translated_values[key]}")
             
             conn = self._get_db_connection()
             cursor = conn.cursor()
@@ -170,7 +210,7 @@ class SchemeSearchService:
             base_query += " ORDER BY similarity_score ASC LIMIT %s"
             params.append(limit)
             
-            logger.info(f"Executing search query with {len(params)} parameters")
+            logger.info(f"Executing search query with {len(params)} parameters\n Query: {base_query}\nParams: {params}")
             cursor.execute(base_query, params)
             results = cursor.fetchall()
             

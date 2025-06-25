@@ -14,6 +14,7 @@ from bs4 import BeautifulSoup
 import random
 import openai
 import logging
+from ..utils.helpers import translate_to_english
 
 logger = logging.getLogger(__name__)
 
@@ -60,28 +61,46 @@ class RailwayAPI:
                         message=f"Error fetching train info: {str(e)}"
                     )
                 )
-    
+
+    @classmethod
+    async def _translate_station_name(cls, station_name: str) -> str:
+        """Translate station name to English if needed"""
+        return await translate_to_english(station_name)
+
     @classmethod
     async def get_trains_between_stations(cls, from_station: str, to_station: str) -> Dict[str, Any]:
         """Get trains between two stations"""
-        url = f"{cls.BASE_URL}/rail/getTrains.aspx?Station_From={from_station}&Station_To={to_station}&DataSource=0&Language=0&Cache=true"
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                response = await client.get(
-                    url,
-                    headers={"User-Agent": cls.get_random_user_agent()},
-                    timeout=30
-                )
-                response.raise_for_status()
-                return cls._parse_between_stations(response.text)
-            except Exception as e:
-                raise McpError(
-                    ErrorData(
-                        code=INTERNAL_ERROR,
-                        message=f"Error fetching trains between stations: {str(e)}"
+        try:
+            # Translate station names if needed
+            from_station_en = await cls._translate_station_name(from_station)
+            to_station_en = await cls._translate_station_name(to_station)
+            
+            url = f"{cls.BASE_URL}/rail/getTrains.aspx?Station_From={from_station_en}&Station_To={to_station_en}&DataSource=0&Language=0&Cache=true"
+            
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get(
+                        url,
+                        headers={"User-Agent": cls.get_random_user_agent()},
+                        timeout=30
                     )
+                    response.raise_for_status()
+                    return cls._parse_between_stations(response.text)
+                except Exception as e:
+                    raise McpError(
+                        ErrorData(
+                            code=INTERNAL_ERROR,
+                            message=f"Error fetching trains between stations: {str(e)}"
+                        )
+                    )
+        except Exception as e:
+            logger.error(f"Error in get_trains_between_stations: {e}")
+            raise McpError(
+                ErrorData(
+                    code=INTERNAL_ERROR,
+                    message=f"Error processing train stations: {str(e)}"
                 )
+            )
     
     @classmethod
     async def get_train_route(cls, train_no: str) -> Dict[str, Any]:
@@ -481,23 +500,24 @@ def register_railway_tools(mcp):
                 )
             )
 
-    GetTrainsBetweenStationsToolDescription = RichToolDescription(
+    trains_between_desc = RichToolDescription(
         description="Find all trains running between two stations",
         use_when="You want to know which trains run between specific stations and their timings",
-        side_effects="Makes HTTP requests to get train schedule data",
+        side_effects="Makes HTTP requests to get train schedule data"
     )
 
-    @mcp.tool(description=GetTrainsBetweenStationsToolDescription.model_dump_json())
+    @mcp.tool(description=trains_between_desc.model_dump_json())
     async def get_trains_between_stations(
         from_station: Annotated[str, Field(description="Source station code (e.g., NDLS, BCT)")],
         to_station: Annotated[str, Field(description="Destination station code (e.g., BCT, NDLS)")],
+        source_lang: Annotated[str, Field(description="Source language code (e.g., 'hi', 'mr'). Use 'auto' for auto-detection.", default="auto")] = "auto",
         date: Annotated[str, Field(description="Date in DD-MM-YYYY format for filtering trains", default="")] = ""
-    ) -> list[TextContent]:
-        """Get all trains running between two stations."""
+    ) -> List[TextContent]:
+        """Get trains between two stations."""
         try:
             logger.info(f"Getting trains between {from_station} and {to_station}")
             # Get trains between stations
-            trains_data = await RailwayAPI.get_trains_between_stations(from_station, to_station)
+            trains_data = await RailwayAPI.get_trains_between_stations(from_station, to_station, source_lang)
             
             if not trains_data.get("success"):
                 return [TextContent(

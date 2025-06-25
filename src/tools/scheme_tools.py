@@ -49,7 +49,8 @@ def register_scheme_tools(mcp):
         is_differently_abled: Optional[bool] = None,
         age_min: Optional[int] = None,
         age_max: Optional[int] = None,
-        limit: int = 10
+        limit: int = 10,
+        language: Optional[str] = None
     ) -> list[TextContent]:
         """
         Search government schemes using AI-powered semantic search with optional filters.
@@ -59,7 +60,7 @@ def register_scheme_tools(mcp):
         - Optional filters for state, category, demographics, etc.
         
         Args:
-            query: Natural language search query describing what you're looking for
+            query: Natural language search query describing what you're looking for in any language
             state: Optional state/region filter (e.g., "Gujarat", "All")
             category: Optional category filter (e.g., "Education", "Agriculture")
             gender: Optional gender filter ("male", "female", "transgender")
@@ -71,6 +72,7 @@ def register_scheme_tools(mcp):
             age_min: Optional minimum age requirement
             age_max: Optional maximum age requirement
             limit: Maximum number of results to return (default: 10)
+            language: Optional language code of the input query (e.g., "hi" for Hindi, "mr" for Marathi). Auto-detects if not provided.
             
         Returns:
             List of matching government schemes with details and similarity scores
@@ -90,7 +92,8 @@ def register_scheme_tools(mcp):
                 is_differently_abled=is_differently_abled,
                 age_min=age_min,
                 age_max=age_max,
-                limit=limit
+                limit=limit,
+                source_lang=language
             )
             
             if "error" in results:
@@ -108,26 +111,64 @@ def register_scheme_tools(mcp):
                           "- Broader search terms\n" +
                           "- Different filter combinations\n" +
                           "- Removing some filters"
-                )]
+                )]                # Format results for display
+            # Handle title translation based on language
+            title = "Government Schemes Search Results"
+            query_label = "Query"
+            found_label = "Found"
+            schemes_label = "matching schemes"
             
-            # Format results for display
+            if language == "mr":
+                title = "सरकारी योजनांचे शोध परिणाम"
+                query_label = "शोध"
+                found_label = "सापडले"
+                schemes_label = "जुळणाऱ्या योजना"
+            elif language == "hi":
+                title = "सरकारी योजनाओं के खोज परिणाम"
+                query_label = "खोज"
+                found_label = "मिले"
+                schemes_label = "मिलती-जुलती योजनाएं"
+            
             response_parts = [
-                f"🎯 **Government Schemes Search Results**",
-                f"📝 Query: '{query}'",
-                f"📊 Found {results['total_count']} matching schemes",
+                f"🎯 **{title}**",
+                f"📝 **{query_label}:** '{query}'",
+                f"📊 **{found_label}** {results['total_count']} {schemes_label}",
                 ""
             ]
             
-            # Add applied filters
+            # Add applied filters with translations
+            filters_title = "Applied Filters"
+            if language == "mr":
+                filters_title = "लागू केलेले फिल्टर"
+            elif language == "hi":
+                filters_title = "लागू किए गए फ़िल्टर"
+                
             applied_filters = {k: v for k, v in results['filters_applied'].items() if v is not None}
             if applied_filters:
-                response_parts.append(f"🔧 **Applied Filters:**")
+                response_parts.append(f"🔧 **{filters_title}:**")
+                filter_translations = {
+                    'state': 'राज्य' if language in ["mr", "hi"] else 'State',
+                    'category': 'श्रेणी' if language in ["mr", "hi"] else 'Category',
+                    'gender': 'लिंग' if language in ["mr", "hi"] else 'Gender',
+                    'caste': 'जात' if language in ["mr", "hi"] else 'Caste',
+                    'is_bpl': 'बीपीएल' if language in ["mr", "hi"] else 'BPL',
+                    'is_student': 'विद्यार्थी' if language in ["mr", "hi"] else 'Student',
+                    'is_minority': 'अल्पसंख्यांक' if language in ["mr", "hi"] else 'Minority',
+                    'is_differently_abled': 'दिव्यांग' if language in ["mr", "hi"] else 'Differently Abled'
+                }
                 for key, value in applied_filters.items():
-                    response_parts.append(f"  • {key}: {value}")
+                    translated_key = filter_translations.get(key, key)
+                    response_parts.append(f"  • {translated_key}: {value}")
                 response_parts.append("")
             
-            # Add scheme results
-            response_parts.append("📋 **Matching Schemes:**")
+            # Add scheme results with translations
+            schemes_title = "Matching Schemes"
+            if language == "mr":
+                schemes_title = "जुळणाऱ्या योजना"
+            elif language == "hi":
+                schemes_title = "मिलती-जुलती योजनाएं"
+                
+            response_parts.append(f"📋 **{schemes_title}:**")
             response_parts.append("")
             
             for i, scheme in enumerate(results["results"], 1):
@@ -140,20 +181,45 @@ def register_scheme_tools(mcp):
                     f"📝 **Description:** {scheme['description'][:200]}{'...' if len(scheme['description']) > 200 else ''}",
                 ]
                 
-                # Add demographic info if available
+                # Add demographic info with translations
                 demographic_info = []
+                
+                # Define translations
+                translations = {
+                    'mr': {
+                        'Gender': 'लिंग',
+                        'Caste': 'जात',
+                        'BPL eligible': 'बीपीएल पात्र',
+                        'For students': 'विद्यार्थ्यांसाठी',
+                        'For minorities': 'अल्पसंख्यांकांसाठी',
+                        'For differently abled': 'दिव्यांगांसाठी'
+                    },
+                    'hi': {
+                        'Gender': 'लिंग',
+                        'Caste': 'जाति',
+                        'BPL eligible': 'बीपीएल पात्र',
+                        'For students': 'छात्रों के लिए',
+                        'For minorities': 'अल्पसंख्यकों के लिए',
+                        'For differently abled': 'दिव्यांगों के लिए'
+                    }
+                }
+                
+                lang_dict = translations.get(language, {})
+                
                 if scheme['gender']:
-                    demographic_info.append(f"Gender: {scheme['gender']}")
+                    label = lang_dict.get('Gender', 'Gender')
+                    demographic_info.append(f"{label}: {scheme['gender']}")
                 if scheme['caste']:
-                    demographic_info.append(f"Caste: {scheme['caste']}")
+                    label = lang_dict.get('Caste', 'Caste')
+                    demographic_info.append(f"{label}: {scheme['caste']}")
                 if scheme['is_bpl']:
-                    demographic_info.append("BPL eligible")
+                    demographic_info.append(lang_dict.get('BPL eligible', 'BPL eligible'))
                 if scheme['is_student']:
-                    demographic_info.append("For students")
+                    demographic_info.append(lang_dict.get('For students', 'For students'))
                 if scheme['is_minority']:
-                    demographic_info.append("For minorities")
+                    demographic_info.append(lang_dict.get('For minorities', 'For minorities'))
                 if scheme['is_differently_abled']:
-                    demographic_info.append("For differently abled")
+                    demographic_info.append(lang_dict.get('For differently abled', 'For differently abled'))
                 
                 if demographic_info:
                     scheme_info.append(f"👥 **Eligibility:** {', '.join(demographic_info)}")
@@ -167,14 +233,31 @@ def register_scheme_tools(mcp):
                 response_parts.extend(scheme_info)
                 response_parts.append("")
             
-            # Add usage tips
-            response_parts.extend([
-                "💡 **Tips for better results:**",
-                "• Use specific keywords (e.g., 'scholarship', 'agriculture', 'health')",
-                "• Combine filters for targeted results",
-                "• Try different search terms if no results found",
-                "• Check scheme URLs for detailed eligibility criteria"
-            ])
+            # Add usage tips with translations
+            if language == "mr":
+                response_parts.extend([
+                    "💡 **चांगल्या परिणामांसाठी टिप्स:**",
+                    "• विशिष्ट कीवर्ड वापरा (उदा., 'शिष्यवृत्ती', 'शेती', 'आरोग्य')",
+                    "• लक्षित परिणामांसाठी फिल्टर एकत्र करा",
+                    "• परिणाम न मिळाल्यास वेगवेगळे शोध शब्द वापरून पहा",
+                    "• पात्रतेच्या तपशीलांसाठी योजनेचे URLs तपासा"
+                ])
+            elif language == "hi":
+                response_parts.extend([
+                    "💡 **बेहतर परिणामों के लिए सुझाव:**",
+                    "• विशिष्ट कीवर्ड का प्रयोग करें (जैसे, 'छात्रवृत्ति', 'कृषि', 'स्वास्थ्य')",
+                    "• लक्षित परिणामों के लिए फ़िल्टर को संयोजित करें",
+                    "• परिणाम नहीं मिलने पर अलग खोज शब्द आज़माएं",
+                    "• पात्रता विवरण के लिए योजना URLs की जांच करें"
+                ])
+            else:
+                response_parts.extend([
+                    "💡 **Tips for better results:**",
+                    "• Use specific keywords (e.g., 'scholarship', 'agriculture', 'health')",
+                    "• Combine filters for targeted results",
+                    "• Try different search terms if no results found",
+                    "• Check scheme URLs for detailed eligibility criteria"
+                ])
             
             return [TextContent(
                 type="text",

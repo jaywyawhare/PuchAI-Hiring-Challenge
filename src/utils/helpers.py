@@ -117,101 +117,42 @@ def load_resume() -> str:
     
     return resume_content
 
-async def translate_to_english(text: str, source_lang: str = 'auto') -> str:
+async def translate_to_english(text: str, source_lang: str = "auto") -> str:
     """
-    Translate text to English using Google Translate without API.
+    Translate text to English using Google Translate API.
     
     Args:
         text: Text to translate
-        source_lang: Source language code (default: auto-detect)
+        source_lang: Source language code (use 'auto' for auto-detection)
         
     Returns:
         Translated text in English
     """
-    if not text or source_lang == 'en':
+    if not text:
         return text
         
     try:
-        url = 'https://translate.googleapis.com/translate_a/single'
-        params = {
-            'client': 'gtx',
-            'sl': source_lang,
-            'tl': 'en',
-            'dt': 't',
-            'q': text
-        }
-        
-        full_url = f"{url}?{urlencode(params)}"
-        
+        # Use httpx for async HTTP requests
         async with httpx.AsyncClient() as client:
-            response = await client.get(full_url)
-            if response.status_code != 200:
-                logger.warning(f"Translation failed: {response.status_code}")
-                return text
-                
-            # Parse the response
+            params = {
+                "client": "gtx",
+                "sl": source_lang,
+                "tl": "en",
+                "dt": "t",
+                "q": text,
+            }
+            
+            url = f"https://translate.googleapis.com/translate_a/single?{urlencode(params)}"
+            response = await client.get(url, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+            
+            # Parse response and extract translated text
             data = response.json()
-            if not data:
-                return text
-                
-            # Extract translated text from the response
-            translated = ''
-            for segment in data[0]:
-                if segment[0]:
-                    translated += segment[0]
-                    
-            return translated or text
+            translated = "".join(item[0] for item in data[0] if item[0])
+            
+            logger.debug(f"Translated '{text}' ({source_lang}) -> '{translated}' (en)")
+            return translated
             
     except Exception as e:
-        logger.warning(f"Translation error: {str(e)}")
-        return text  # Return original text if translation fails
-
-async def translate_to_english(text: str, detect_threshold: float = 0.8) -> str:
-    """
-    Translates text to English if it's not already in English.
-    Uses Google Translate without API key through an unofficial API.
-    
-    Args:
-        text: Text to translate
-        detect_threshold: Confidence threshold for English detection (0-1)
-        
-    Returns:
-        Translated text if input was non-English, original text otherwise
-    """
-    # Quick check for English using regex pattern
-    # Check if text contains mostly English characters and common words
-    english_pattern = re.compile(r'^[a-zA-Z0-9\s\.,!?\'-]+$')
-    common_eng_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for'}
-    words = set(text.lower().split())
-    
-    # If text matches English pattern and contains common English words, return as is
-    if (english_pattern.match(text) and 
-        len(words.intersection(common_eng_words)) / len(words) >= detect_threshold):
-        return text
-        
-    try:
-        # Unofficial Google Translate API endpoint
-        url = "https://translate.googleapis.com/translate_a/single"
-        params = {
-            "client": "gtx",
-            "sl": "auto",  # Source language (auto-detect)
-            "tl": "en",    # Target language (English)
-            "dt": "t",     # Return type (text)
-            "q": text      # Text to translate
-        }
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, params=params)
-            if response.status_code == 200:
-                # Extract translated text from response
-                translated = ""
-                for item in response.json()[0]:
-                    if item[0]:
-                        translated += item[0]
-                return translated
-            
-    except Exception as e:
-        logger.warning(f"Translation failed: {e}")
-        return text  # Return original text if translation fails
-        
-    return text  # Return original text if anything goes wrong
+        logger.warning(f"Translation failed for '{text}': {e}")
+        return text  # Fallback to original text if translation fails

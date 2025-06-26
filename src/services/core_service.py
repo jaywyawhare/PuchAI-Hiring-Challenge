@@ -37,11 +37,6 @@ class CoreService(ToolService):
                 use_when="User asks for help, wants to see available commands, or needs guidance on using Chup AI.",
                 side_effects="User receives a formatted help menu with all available tools organized by category."
             ),
-            "meow": RichToolDescription(
-                description="Meow back with adorable cat pictures and cat-themed responses.",
-                use_when="User sends 'meow', asks for cats, or wants cute cat content.",
-                side_effects="Returns cat-themed responses with ASCII art and cat facts."
-            ),
             "core_list_tools": RichToolDescription(
                 description="Get a comprehensive list of all available tools and their descriptions.",
                 use_when="User wants to see all available tools, asks for commands list, or needs to know what the system can do.",
@@ -95,15 +90,6 @@ class CoreService(ToolService):
             logger.info(f"validate tool output (core_service): {my_number.strip()}")
             return [TextContent(type="text", text=my_number.strip())]
         
-        @mcp.tool(description=self.get_tool_descriptions()["meow"].model_dump_json())
-        async def meow() -> list[TextContent]:
-            logger.info("meow tool called (core_service)")
-            # Call the actual cat tool and get the result
-            from src.tools.cat_pic_tool import fetch_cat_pic_content
-            result = [fetch_cat_pic_content()]
-            logger.info(f"meow tool output (core_service): {result[0].text[:200]}..." if len(result[0].text) > 200 else f"meow tool output (core_service): {result[0].text}")
-            return result
-        
         @mcp.tool(description=self.get_tool_descriptions()["core_list_tools"].model_dump_json())
         async def core_list_tools() -> list[TextContent]:
             logger.info("core_list_tools tool called (core_service)")
@@ -123,7 +109,6 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 - `resume()` - Get developer resume
 - `validate()` - Validate MCP server configuration
 - `core_get_help_menu()` - Show this help menu
-- `meow()` - Get cute cat pictures and responses
 - `core_list_tools()` - Get a list of all available tools
 
 **Web Tools:**

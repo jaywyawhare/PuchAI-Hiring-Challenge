@@ -65,8 +65,7 @@ class WebService(ToolService):
         return [TextContent(type="text", text="\n".join(response))]
     
     def register_tools(self, mcp):
-        """Register web tools with the MCP server."""
-        self.logger.info("Registering web tools...")
+        logger.info("Registering web tools...")
         
         @mcp.tool(description=self.get_tool_descriptions()["fetch"].model_dump_json())
         async def fetch(
@@ -239,3 +238,5 @@ class WebService(ToolService):
                         code=INTERNAL_ERROR,                    message=f"Error searching for information: {str(e)}"
                 )
             )
+        
+        logger.info("Web tools registered.")

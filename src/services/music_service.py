@@ -52,10 +52,10 @@ class MusicService(ToolService):
         }
     
     def register_tools(self, mcp):
+        logger.info("Registering music tools...")
         """Register music tools with the MCP server."""
         # Import the existing music tools registration function
         from ..tools.music_tools import register_music_tools
         
-        self.logger.info("Registering music tools...")
         register_music_tools(mcp)
-        self.logger.info("Music tools registered successfully")
+        logger.info("Music tools registered.")

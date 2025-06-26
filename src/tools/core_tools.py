@@ -64,8 +64,9 @@ def register_core_tools(mcp):
             McpError: If the resume file cannot be found or read
         """
         try:
-            logger.info("Loading resume from file...")
+            logger.info("resume tool called")
             result_text = manager.get_resume_content()
+            logger.info(f"resume tool output: {result_text[:200]}..." if len(result_text) > 200 else f"resume tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -98,8 +99,9 @@ def register_core_tools(mcp):
             list[TextContent]: The configured phone number
         """
         logger.info("Validating MCP server configuration...")
+        logger.info("validate tool called")
         from ..config import MY_NUMBER
-        logger.info("Validation completed successfully")
+        logger.info(f"validate tool output: {MY_NUMBER.strip()}")
         return [TextContent(type="text", text=MY_NUMBER.strip())]
 
     HelpMenuDescription = RichToolDescription(
@@ -109,7 +111,7 @@ def register_core_tools(mcp):
     )
 
     @mcp.tool(description=HelpMenuDescription.model_dump_json())
-    async def get_help_menu() -> list[TextContent]:
+    async def core_get_help_menu() -> list[TextContent]:
         """
         Display comprehensive help menu for Chup AI - Intelligent Assistant for Puch AI.
         
@@ -117,6 +119,7 @@ def register_core_tools(mcp):
         optimized for WhatsApp chatbot interactions.
         """
         logger.info("Generating help menu...")
+        logger.info("core_get_help_menu tool called")
         help_text = """
 🤖 **Welcome to Chup AI!** 
 Your intelligent WhatsApp assistant with smart tools and live data.
@@ -189,6 +192,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 🚀 Chup AI - Your Intelligent WhatsApp Assistant
         """
         result_text = help_text.strip()
+        logger.info(f"core_get_help_menu tool output: {result_text[:200]}..." if len(result_text) > 200 else f"core_get_help_menu tool output: {result_text}")
         return [TextContent(type="text", text=result_text.strip())]
 
     available_tools_desc = manager.create_tool_description(
@@ -198,13 +202,14 @@ Your intelligent WhatsApp assistant with smart tools and live data.
     )
 
     @mcp.tool(description=available_tools_desc.model_dump_json())
-    async def get_available_tools() -> list[TextContent]:
+    async def core_get_available_tools() -> list[TextContent]:
         """
         Get a list of all available tools and their descriptions.
         
         Returns information about all tools available in this MCP server,
         including scheme search, web tools, and other utilities.
         """
+        logger.info("core_get_available_tools tool called")
         tools_info = {
             "Scheme Search Tools": [
                 "search_government_schemes - AI-powered semantic search for government schemes",
@@ -230,6 +235,9 @@ Your intelligent WhatsApp assistant with smart tools and live data.
             "Research Tools": [
                 "search_arxiv - Search academic papers on arXiv",
                 "search_hackernews - Search Hacker News stories"
+            ],
+            "Deep Research Tools": [
+                "deep_research - Perform deep research on a topic using citation graph traversal, Wikipedia, and arXiv integration."
             ]
         }
         
@@ -243,11 +251,23 @@ Your intelligent WhatsApp assistant with smart tools and live data.
         
         response_parts.extend([
             "For more details on each tool, use the help command or ask for specific functionality.",
-            "You can also use the `get_help_menu` command to see a comprehensive help menu."
+            "You can also use the `core_get_help_menu` command to see a comprehensive help menu."
         ])
         
-        from mcp.types import TextContent
-        return [TextContent(type="text", text="\n".join(response_parts))]
+        output = "\n".join(response_parts)
+        logger.info(f"core_get_available_tools tool output: {output[:200]}..." if len(output) > 200 else f"core_get_available_tools tool output: {output}")
+        return [TextContent(type="text", text=output)]
     
+    @mcp.tool(description=available_tools_desc.model_dump_json())
+    async def core_list_tools() -> list[TextContent]:
+        """
+        Alias for core_get_available_tools to ensure compatibility with expected tool names.
+        Returns the same output as core_get_available_tools.
+        """
+        logger.info("core_list_tools tool called (alias for core_get_available_tools)")
+        result = await core_get_available_tools()
+        logger.info(f"core_list_tools tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"core_list_tools tool output: {result[0].text}")
+        return result
+
     # Register scheme search tools
     register_scheme_tools(mcp)

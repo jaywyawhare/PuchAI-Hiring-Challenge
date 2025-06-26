@@ -52,6 +52,7 @@ def register_scheme_tools(mcp):
         limit: int = 10,
         language: Optional[str] = None
     ) -> list[TextContent]:
+        logger.info(f"search_government_schemes tool called with query={query}, state={state}, category={category}, gender={gender}, caste={caste}, is_bpl={is_bpl}, is_student={is_student}, is_minority={is_minority}, is_differently_abled={is_differently_abled}, age_min={age_min}, age_max={age_max}, limit={limit}, language={language}")
         """
         Search government schemes using AI-powered semantic search with optional filters.
         
@@ -259,10 +260,12 @@ def register_scheme_tools(mcp):
                     "• Check scheme URLs for detailed eligibility criteria"
                 ])
             
-            return [TextContent(
+            result = [TextContent(
                 type="text",
                 text="\n".join(response_parts)
             )]
+            logger.info(f"search_government_schemes tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"search_government_schemes tool output: {result[0].text}")
+            return result
             
         except Exception as e:
             logger.error(f"Error in search_government_schemes: {e}")
@@ -273,6 +276,7 @@ def register_scheme_tools(mcp):
     
     @mcp.tool(description=categories_desc_json)
     async def get_scheme_categories() -> list[TextContent]:
+        logger.info("get_scheme_categories tool called")
         """
         Get all available government scheme categories.
         
@@ -309,10 +313,12 @@ def register_scheme_tools(mcp):
                 "Example: search_government_schemes('student support', category='Education & Learning')"
             ])
             
-            return [TextContent(
+            result = [TextContent(
                 type="text",
                 text="\n".join(response_parts)
             )]
+            logger.info(f"get_scheme_categories tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"get_scheme_categories tool output: {result[0].text}")
+            return result
             
         except Exception as e:
             logger.error(f"Error in get_scheme_categories: {e}")
@@ -323,6 +329,7 @@ def register_scheme_tools(mcp):
     
     @mcp.tool(description=states_desc_json)
     async def get_scheme_states() -> list[TextContent]:
+        logger.info("get_scheme_states tool called")
         """
         Get all available states/regions for government schemes.
         
@@ -360,10 +367,12 @@ def register_scheme_tools(mcp):
                 "Example: search_government_schemes('farmer support', state='Gujarat')"
             ])
             
-            return [TextContent(
+            result = [TextContent(
                 type="text",
                 text="\n".join(response_parts)
             )]
+            logger.info(f"get_scheme_states tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"get_scheme_states tool output: {result[0].text}")
+            return result
             
         except Exception as e:
             logger.error(f"Error in get_scheme_states: {e}")

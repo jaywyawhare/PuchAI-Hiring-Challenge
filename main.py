@@ -159,6 +159,7 @@ mcp = FastMCP(
 
 logger.info("FastMCP server initialized")
 
+logger.info("Registering all tools...")
 register_core_tools(mcp)  # This now includes scheme tools
 register_web_tools(mcp)
 register_railway_tools(mcp)
@@ -167,7 +168,6 @@ register_weather_tools(mcp)
 register_arxiv_tools(mcp)
 register_hn_tools(mcp)
 register_deep_research_tools(mcp)
-
 logger.info("All tools registered successfully")
 
 
@@ -182,7 +182,7 @@ async def main():
     - YouTube music streaming and multi-platform music search
     - WhatsApp chatbot integration ready
     """
-    logger.info("Starting Chup AI MCP server...")
+    logger.info("Starting Chup AI MCP server main()...")
 
     await mcp.run_async(
         "streamable-http",
@@ -190,9 +190,10 @@ async def main():
         port=8085,
     )
 
+    logger.info("Chup AI MCP server main() completed.")
+
 
 if __name__ == "__main__":
     import asyncio
-    
     logger.info("Chup AI MCP Server starting up...")
     asyncio.run(main())

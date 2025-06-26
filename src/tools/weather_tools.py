@@ -140,6 +140,7 @@ def register_weather_tools(mcp):
         source_lang: Annotated[str, Field(description="Source language code (e.g., 'fr', 'es', 'de'). Use 'auto' for auto-detection.", default="auto")] = "auto"
     ) -> List[TextContent]:
         """Get current weather for a location in any language."""
+        logger.info(f"get_weather tool called with location={location}")
         try:
             result = await WeatherAPI.get_current_weather(location, source_lang)
             
@@ -174,9 +175,56 @@ def register_weather_tools(mcp):
                         f"Low: {min_temp}°C"
                     ])
 
+            logger.info(f"get_weather tool output: {response}")
             return [TextContent(type="text", text="\n".join(response))]
 
         except Exception as e:
+            logger.error(f"get_weather tool error: {str(e)}")
+            return [TextContent(
+                type="text",
+                text=f"❌ Error: {str(e)}"
+            )]
+
+    @mcp.tool(description=weather_desc.model_dump_json())
+    async def get_weather_forecast(
+        location: Annotated[str, Field(description="Location name (city, address)")],
+        source_lang: Annotated[str, Field(description="Source language code (e.g., 'fr', 'es', 'de'). Use 'auto' for auto-detection.", default="auto")] = "auto"
+    ) -> List[TextContent]:
+        """Get weather forecast for a location in any language."""
+        logger.info(f"get_weather_forecast tool called with location={location}")
+        try:
+            result = await WeatherAPI.get_weather_forecast(location, source_lang)
+            
+            if not result["success"]:
+                return [TextContent(
+                    type="text",
+                    text=f"❌ Error: {result.get('error', 'Unknown error occurred')}"
+                )]
+
+            data = result["data"]
+            forecast = data["forecast"]
+            
+            # Format the response
+            response = [
+                f"📅 Weather forecast for {data['location_name']}:",
+                f"Timezone: {data['timezone']}",
+                f"Last Updated: {forecast['time']}"
+            ]
+
+            # Add daily forecast details
+            if "daily" in forecast:
+                daily = forecast["daily"]
+                for i in range(len(daily["time"])):
+                    date = daily["time"][i]
+                    max_temp = daily["temperature_2m_max"][i]
+                    min_temp = daily["temperature_2m_min"][i]
+                    response.append(f"{date}: High {max_temp}°C, Low {min_temp}°C")
+
+            logger.info(f"get_weather_forecast tool output: {response}")
+            return [TextContent(type="text", text="\n".join(response))]
+
+        except Exception as e:
+            logger.error(f"get_weather_forecast tool error: {str(e)}")
             return [TextContent(
                 type="text",
                 text=f"❌ Error: {str(e)}"

@@ -447,8 +447,8 @@ def register_railway_tools(mcp):
         date: Annotated[str, Field(description="Date in YYYY-MM-DD format", default="")] = ""
     ) -> list[TextContent]:
         """Get live status and detailed information of a train."""
+        logger.info(f"get_live_train_status tool called with train_number={train_number}")
         try:
-            logger.info(f"Getting live train status for train {train_number}")
             if not date:
                 date = datetime.now().strftime("%Y-%m-%d")
             
@@ -489,6 +489,7 @@ def register_railway_tools(mcp):
 *Last Updated: {datetime.fromtimestamp(train_info.get('time_stamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S')}*
             """
             
+            logger.info(f"get_live_train_status tool output: {result_text.strip()[:200]}..." if len(result_text.strip()) > 200 else f"get_live_train_status tool output: {result_text.strip()}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -514,6 +515,7 @@ def register_railway_tools(mcp):
         date: Annotated[str, Field(description="Date in DD-MM-YYYY format for filtering trains", default="")] = ""
     ) -> List[TextContent]:
         """Get trains between two stations."""
+        logger.info(f"get_trains_between_stations tool called with from_station={from_station}, to_station={to_station}")
         try:
             logger.info(f"Getting trains between {from_station} and {to_station}")
             # Get trains between stations
@@ -554,6 +556,7 @@ def register_railway_tools(mcp):
             
             result_text += f"\n*Last Updated: {datetime.fromtimestamp(trains_data.get('time_stamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S')}*"
             
+            logger.info(f"get_trains_between_stations tool output: {result_text.strip()[:200]}..." if len(result_text.strip()) > 200 else f"get_trains_between_stations tool output: {result_text.strip()}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -576,6 +579,7 @@ def register_railway_tools(mcp):
         pnr_number: Annotated[str, Field(description="10-digit PNR number")]
     ) -> list[TextContent]:
         """Check PNR status for a railway booking."""
+        logger.info(f"get_pnr_status_tool called with pnr_number={pnr_number}")
         try:
             logger.info(f"Checking PNR status for: {pnr_number}")
             if len(pnr_number) != 10 or not pnr_number.isdigit():
@@ -624,6 +628,7 @@ def register_railway_tools(mcp):
             
             result_text += f"\n*Last Updated: {datetime.fromtimestamp(pnr_data.get('time_stamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S')}*"
             
+            logger.info(f"get_pnr_status_tool output: {result_text.strip()[:200]}..." if len(result_text.strip()) > 200 else f"get_pnr_status_tool output: {result_text.strip()}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -648,6 +653,7 @@ def register_railway_tools(mcp):
         train_number: Annotated[str, Field(description="Train number (e.g., 12345)")]
     ) -> list[TextContent]:
         """Get complete schedule/route for a train with all stations."""
+        logger.info(f"get_train_schedule_tool called with train_number={train_number}")
         try:
             logger.info(f"Getting train schedule for train {train_number}")
             # Get train route
@@ -687,6 +693,7 @@ def register_railway_tools(mcp):
             
             result_text += f"\n*Last Updated: {datetime.fromtimestamp(route_data.get('time_stamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S')}*"
             
+            logger.info(f"get_train_schedule_tool output: {result_text.strip()[:200]}..." if len(result_text.strip()) > 200 else f"get_train_schedule_tool output: {result_text.strip()}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -709,6 +716,7 @@ def register_railway_tools(mcp):
         station_code: Annotated[str, Field(description="Station code (e.g., NDLS, BCT, AGC)")]
     ) -> list[TextContent]:
         """Get live status of all trains currently at or arriving at a station."""
+        logger.info(f"get_station_live_status tool called with station_code={station_code}")
         try:
             logger.info(f"Getting live station status for {station_code}")
             # Get station live status
@@ -745,6 +753,7 @@ def register_railway_tools(mcp):
             
             result_text += f"\n*Last Updated: {datetime.fromtimestamp(station_data.get('time_stamp', 0) / 1000).strftime('%Y-%m-%d %H:%M:%S')}*"
             
+            logger.info(f"get_station_live_status tool output: {result_text.strip()[:200]}..." if len(result_text.strip()) > 200 else f"get_station_live_status tool output: {result_text.strip()}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:

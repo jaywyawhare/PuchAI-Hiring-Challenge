@@ -11,6 +11,7 @@ import logging
 import feedparser
 import httpx
 import openai
+import asyncio
 from ..utils.helpers import translate_to_english
 
 
@@ -217,6 +218,7 @@ def register_arxiv_tools(mcp):
         - Author: au:"Hinton" AND ti:"deep learning"
         - Category: cat:cs.AI
         """
+        logger.info(f"search_arxiv_papers tool called with query={query}, max_results={max_results}")
         try:
             # Translate query to English if needed
             query_en = await translate_to_english(query, source_lang)
@@ -272,6 +274,7 @@ Found {len(papers)} papers:
 *🔴 Live data from arXiv.org API*
 """
             
+            logger.info(f"search_arxiv_papers tool output: {result_text[:200]}..." if len(result_text) > 200 else f"search_arxiv_papers tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -300,6 +303,7 @@ Found {len(papers)} papers:
         Use search_arxiv_papers() for searching papers by keywords.
         This tool only accepts valid arXiv IDs like: 2103.08220, 1234.5678
         """
+        logger.info(f"get_arxiv_paper tool called with paper_id={paper_id}")
         try:
             logger.info(f"Getting arXiv paper details for ID: {paper_id}")
             # Validate arXiv ID format
@@ -353,6 +357,7 @@ Found {len(papers)} papers:
             
             result_text += "\n*🔴 Live data from arXiv.org API*"
             
+            logger.info(f"get_arxiv_paper tool output: {result_text[:200]}..." if len(result_text) > 200 else f"get_arxiv_paper tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:

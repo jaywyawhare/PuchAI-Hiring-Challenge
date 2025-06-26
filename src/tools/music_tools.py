@@ -72,6 +72,7 @@ class YouTubeDownloader:
     @classmethod
     async def search_youtube_music(cls, query: str, max_results: int = 5) -> Dict[str, Any]:
         """Search YouTube Music using yt-dlp"""
+        logger.info(f"search_youtube_music tool called with query={query}, max_results={max_results}")
         if not cls.is_available():
             return {"success": False, "error": "yt-dlp or ffmpeg not available"}
         
@@ -103,6 +104,7 @@ class YouTubeDownloader:
                                 'thumbnail': entry.get('thumbnail', '')
                             })
                 
+                logger.info(f"search_youtube_music tool output: {results}")
                 return {
                     "success": True,
                     "results": results,
@@ -485,6 +487,7 @@ def register_music_tools(mcp):
 *🔴 Live data from multiple music platforms*
             """
             
+            logger.info(f"get_song_name_links tool output: {result_text[:200]}..." if len(result_text) > 200 else f"get_song_name_links tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -578,6 +581,7 @@ def register_music_tools(mcp):
 *🔴 Live search results from multiple music platforms*
             """
             
+            logger.info(f"get_music_recommendations tool output: {result_text[:200]}..." if len(result_text) > 200 else f"get_music_recommendations tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -716,6 +720,7 @@ wget -O "audio.{audio_format}" "{audio_url}"
 *🔴 Live audio stream for "{song_name}"*
             """
             print(result_text)  # For debugging
+            logger.info(f"get_youtube_music_stream tool output: {result_text[:200]}..." if len(result_text) > 200 else f"get_youtube_music_stream tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -808,6 +813,7 @@ pip install yt-dlp
             search_method = search_results.get("method", "yt-dlp" if YouTubeDownloader.is_available() else "fallback")
             result_text += f"\n*🔴 Live search results using {search_method}*"
             
+            logger.info(f"search_and_stream_music tool output: {result_text[:200]}..." if len(result_text) > 200 else f"search_and_stream_music tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
@@ -936,6 +942,7 @@ mpv "{file_path}"
 *🔴 Audio downloaded using yt-dlp and ffmpeg*
             """
             
+            logger.info(f"download_youtube_audio tool output: {result_text[:200]}..." if len(result_text) > 200 else f"download_youtube_audio tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:

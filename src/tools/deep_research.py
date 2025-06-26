@@ -1105,6 +1105,7 @@ def register_deep_research_tools(mcp):
         The research goes beyond surface-level information to explore
         the interconnected web of knowledge around your topic.
         """
+        logger.info(f"deep_research_with_citations tool called with topic={topic}, max_depth={max_depth}")
         try:
             logger.info(f"Starting deep research for: {topic} (depth: {max_depth})")
             
@@ -1168,6 +1169,7 @@ def register_deep_research_tools(mcp):
 *🔴 Live deep research using advanced citation analysis*
             """
             
+            logger.info(f"deep_research_with_citations tool output: {result_text[:200]}..." if len(result_text) > 200 else f"deep_research_with_citations tool output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:

@@ -43,10 +43,10 @@ class NewsService(ToolService):
         }
     
     def register_tools(self, mcp):
+        logger.info("Registering news tools...")
         """Register news tools with the MCP server."""
         # Import the existing hacker news tools registration function
         from ..tools.hn_tools import register_hn_tools
         
-        self.logger.info("Registering news tools...")
         register_hn_tools(mcp)
-        self.logger.info("News tools registered successfully")
+        logger.info("News tools registered.")

@@ -38,10 +38,10 @@ class AcademicService(ToolService):
         }
     
     def register_tools(self, mcp):
+        logger.info("Registering academic tools...")
         """Register academic tools with the MCP server."""
         # Import the existing arxiv tools registration function
         from ..tools.arxiv_tools import register_arxiv_tools
         
-        self.logger.info("Registering academic tools...")
         register_arxiv_tools(mcp)
-        self.logger.info("Academic tools registered successfully")
+        logger.info("Academic tools registered.")

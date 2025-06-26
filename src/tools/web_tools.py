@@ -108,7 +108,9 @@ def register_web_tools(mcp):
                     response.append(f"\n\n📝 Content truncated. {remaining} characters remaining.")
                     response.append(f"To continue reading, use: fetch(url='{url_or_error}', start_index={next_start})")
                 
-                return [TextContent(type="text", text="\n".join(response))]
+                result = [TextContent(type="text", text="\n".join(response))]
+                logger.info(f"fetch tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"fetch tool output: {result[0].text}")
+                return result
                 
         except httpx.TimeoutError:
             return format_error_response("Request timed out", [
@@ -141,6 +143,7 @@ def register_web_tools(mcp):
         source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
     ) -> list[TextContent]:
         """Search the internet with automatic language translation support."""
+        logger.info(f"search_information_on_internet tool called with query={query}, language={source_lang}")
         try:
             # Translate query to English if needed
             query_en = await translate_to_english(query, source_lang) 
@@ -222,7 +225,9 @@ def register_web_tools(mcp):
                     search_url = f"https://duckduckgo.com/?q={query.replace(' ', '+')}"
                     sections.append(f"No direct information found for '{query}'.\nTry searching here: {search_url}")
                 
-                return [TextContent(type="text", text=f"Search results for '{query}':\n\n" + "\n\n".join(sections))]
+                result = [TextContent(type="text", text=f"Search results for '{query}':\n\n" + "\n\n".join(sections))]
+                logger.info(f"search_information_on_internet tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"search_information_on_internet tool output: {result[0].text}")
+                return result
                 
         except httpx.TimeoutError:
             logger.error("Search request timed out")
@@ -250,6 +255,7 @@ def register_web_tools(mcp):
     @mcp.tool(description=HelpMenuToolDescription.model_dump_json())
     async def get_help_menu() -> list[TextContent]:
         """Get comprehensive help information about Chup AI's available tools and capabilities."""
+        logger.info("get_help_menu tool called (web_tools)")
         help_text = """
 # 🤖 Chup AI - WhatsApp Assistant Help Menu
 
@@ -284,4 +290,5 @@ Hi! I'm **Chup AI**, your intelligent WhatsApp assistant. Here's how I can help:
 *🔴 Live data powered by official APIs*
 """
         result_text = help_text.strip()
+        logger.info(f"get_help_menu tool output (web_tools): {result_text[:200]}..." if len(result_text) > 200 else f"get_help_menu tool output (web_tools): {result_text}")
         return [TextContent(type="text", text=result_text.strip())]

@@ -116,8 +116,8 @@ def register_hn_tools(mcp):
         num_stories: Annotated[int, Field(description="Number of stories to fetch", default=10, ge=1, le=30)] = 10
     ) -> list[TextContent]:
         """Get Hacker News stories by type (top, new, ask, show)."""
+        logger.info(f"get_hn_stories tool called with story_type={story_type}, num_stories={num_stories}")
         try:
-            logger.info(f"Getting HN stories: type={story_type}, count={num_stories}")
             hn = HackerNewsAPI()
             stories = await hn.get_stories(story_type, num_stories)
             
@@ -156,7 +156,9 @@ def register_hn_tools(mcp):
                 result_parts.append(f"\nPage {stories.get('page', 0) + 1} of {stories['nbPages']}")
             
             result_parts.append("\n*🔴 Live data from Hacker News API*")
-            return [TextContent(type="text", text="\n".join(result_parts))]
+            result = [TextContent(type="text", text="\n".join(result_parts))]
+            logger.info(f"get_hn_stories tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"get_hn_stories tool output: {result[0].text}")
+            return result
             
         except Exception as e:
             logger.error(f"Error in get_hn_stories: {e}")
@@ -177,6 +179,7 @@ def register_hn_tools(mcp):
         source_lang: Annotated[str, Field(description="Source language code. Use 'auto' for auto-detection.", default="auto")] = "auto"
     ) -> list[TextContent]:
         """Search Hacker News stories by keyword."""
+        logger.info(f"search_hn_stories tool called with query={query}, num_results={num_results}")
         try:
             # Translate query to English if needed
             query_en = await translate_to_english(query, source_lang)
@@ -211,7 +214,9 @@ def register_hn_tools(mcp):
                 result_parts.append("\n".join(story_text))
             
             result_parts.append("\n*🔴 Live data from Hacker News API*")
-            return [TextContent(type="text", text="\n".join(result_parts))]
+            result = [TextContent(type="text", text="\n".join(result_parts))]
+            logger.info(f"search_hn_stories tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"search_hn_stories tool output: {result[0].text}")
+            return result
             
         except Exception as e:
             logger.error(f"Error in search_hn_stories: {e}")
@@ -231,8 +236,8 @@ def register_hn_tools(mcp):
         num_stories: Annotated[int, Field(description="Number of user's stories to fetch", default=5, ge=1, le=20)] = 5
     ) -> list[TextContent]:
         """Get Hacker News user information and recent submissions."""
+        logger.info(f"get_hn_user tool called with username={username}, num_stories={num_stories}")
         try:
-            logger.info(f"Getting HN user info for: {username}")
             hn = HackerNewsAPI()
             user_info = await hn.get_user(username)
             stories = await hn.get_stories("new", num_stories, 0)  # Get recent stories
@@ -275,7 +280,9 @@ def register_hn_tools(mcp):
 *🔴 Live data from Hacker News API*
 """
         
-            return [TextContent(type="text", text=result_text.strip())]
+            result = [TextContent(type="text", text=result_text.strip())]
+            logger.info(f"get_hn_user tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"get_hn_user tool output: {result[0].text}")
+            return result
         
         except Exception as e:
             logger.error(f"Error in get_hn_user: {e}")

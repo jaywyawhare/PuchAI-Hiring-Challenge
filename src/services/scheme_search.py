@@ -61,6 +61,7 @@ class SchemeSearchService:
         limit: int = 10,
         source_lang: Optional[str] = None
     ) -> Dict[str, Any]:
+        logger.info(f"search_schemes called with query={query}, state={state}, category={category}, gender={gender}, caste={caste}, is_bpl={is_bpl}, is_student={is_student}, is_minority={is_minority}, is_differently_abled={is_differently_abled}, age_min={age_min}, age_max={age_max}, limit={limit}, source_lang={source_lang}")
         """
         Search schemes using vector embeddings with optional filters.
         Automatically translates non-English queries to English.
@@ -252,6 +253,7 @@ class SchemeSearchService:
             
             conn.close()
             
+            logger.info(f"search_schemes output: {str(results)[:200]}..." if 'results' in locals() and len(str(results)) > 200 else f"search_schemes output: {results}")
             return {
                 "results": formatted_results,
                 "total_count": len(formatted_results),
@@ -279,6 +281,7 @@ class SchemeSearchService:
             }
     
     async def get_scheme_categories(self) -> List[str]:
+        logger.info("get_scheme_categories called (scheme_search)")
         """Get all available scheme categories."""
         try:
             conn = self._get_db_connection()
@@ -294,6 +297,7 @@ class SchemeSearchService:
             categories = [row[0] for row in cursor.fetchall()]
             conn.close()
             
+            logger.info(f"get_scheme_categories output (scheme_search): {categories}")
             return categories
             
         except Exception as e:
@@ -301,6 +305,7 @@ class SchemeSearchService:
             return []
     
     async def get_scheme_states(self) -> List[str]:
+        logger.info("get_scheme_states called (scheme_search)")
         """Get all available states."""
         try:
             conn = self._get_db_connection()
@@ -316,6 +321,7 @@ class SchemeSearchService:
             states = [row[0] for row in cursor.fetchall()]
             conn.close()
             
+            logger.info(f"get_scheme_states output (scheme_search): {states}")
             return states
             
         except Exception as e:

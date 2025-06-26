@@ -21,6 +21,7 @@ class MCPServer:
     """Main MCP server class with modular tool registration."""
     
     def __init__(self, token: str, name: str = "Chup AI - Intelligent Assistant for Puch AI"):
+        logger.info(f"Initializing MCPServer with name={name}")
         self.token = token
         self.name = name
         self.mcp = FastMCP(name, auth=SimpleBearerAuthProvider(token))
@@ -29,6 +30,7 @@ class MCPServer:
         self._register_all_tools()
     
     def _setup_services(self):
+        logger.info("Setting up services in MCPServer...")
         """Setup all tool services."""
         logger.info("Setting up services...")
         
@@ -41,15 +43,17 @@ class MCPServer:
         self.registry.register_service(AcademicService())
         self.registry.register_service(NewsService())
         
-        logger.info("Services setup complete")
+        logger.info("Services setup complete in MCPServer")
     
     def _register_all_tools(self):
+        logger.info("Registering all tools in MCPServer...")
         """Register all available tools with the MCP server."""
         logger.info("Registering all tools...")
         self.registry.register_all_tools(self.mcp)
-        logger.info("All tools registered successfully")
+        logger.info("All tools registered successfully in MCPServer")
     
     async def run(self, host: str = "0.0.0.0", port: int = 8085):
+        logger.info(f"Running MCPServer on {host}:{port}")
         """Run the MCP server."""
         logger.info(f"Starting {self.name} on {host}:{port}")
         await self.mcp.run_async("streamable-http", host=host, port=port)

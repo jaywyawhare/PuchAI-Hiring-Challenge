@@ -32,10 +32,10 @@ class WeatherService(ToolService):
         }
     
     def register_tools(self, mcp):
+        logger.info("Registering weather tools...")
         """Register weather tools with the MCP server."""
         # Import the existing weather tools registration function
         from ..tools.weather_tools import register_weather_tools
         
-        self.logger.info("Registering weather tools...")
         register_weather_tools(mcp)
-        self.logger.info("Weather tools registered successfully")
+        logger.info("Weather tools registered.")

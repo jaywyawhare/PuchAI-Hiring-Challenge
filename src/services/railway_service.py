@@ -53,10 +53,10 @@ class RailwayService(ToolService):
         }
     
     def register_tools(self, mcp):
+        logger.info("Registering railway tools...")
         """Register railway tools with the MCP server."""
         # Import the existing railway tools registration function
         from ..tools.railway_tools import register_railway_tools
         
-        self.logger.info("Registering railway tools...")
         register_railway_tools(mcp)
-        self.logger.info("Railway tools registered successfully")
+        logger.info("Railway tools registered.")

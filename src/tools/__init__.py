@@ -8,7 +8,7 @@ from .music_tools import register_music_tools
 from .weather_tools import register_weather_tools
 from .arxiv_tools import register_arxiv_tools
 from .hn_tools import register_hn_tools
-from ..tools.deep_research import register_deep_research_tools
+from .deep_research import register_deep_research_tools
 
 __all__ = [
     "register_core_tools",
@@ -22,7 +22,7 @@ __all__ = [
 ]
 
 def register_all_tools(mcp):
-    """Register all available tools including deep research"""
+    """Register all available tools including unified deep research"""
     register_core_tools(mcp)
     register_web_tools(mcp)
     register_railway_tools(mcp)

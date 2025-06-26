@@ -21,6 +21,7 @@ from src.tools.music_tools import register_music_tools
 from src.tools.weather_tools import register_weather_tools
 from src.tools.arxiv_tools import register_arxiv_tools
 from src.tools.hn_tools import register_hn_tools
+from src.tools.deep_research import register_deep_research_tools
 
 load_dotenv()
 
@@ -165,6 +166,7 @@ register_music_tools(mcp)
 register_weather_tools(mcp)
 register_arxiv_tools(mcp)
 register_hn_tools(mcp)
+register_deep_research_tools(mcp)
 
 logger.info("All tools registered successfully")
 

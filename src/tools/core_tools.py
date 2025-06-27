@@ -207,13 +207,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
         side_effects="Returns formatted list of all registered tools and their descriptions"
     )
 
-    @mcp.tool(description=available_tools_desc.model_dump_json())
-    async def core_get_available_tools() -> list[TextContent]:
-        """
-        Get a list of all available tools and their descriptions.
-        Now includes advanced thinking and research tools.
-        """
-        logger.info("core_get_available_tools tool called")
+    def _get_available_tools_output() -> list[TextContent]:
         tools_info = {
             "Scheme Search Tools": [
                 "search_government_schemes - AI-powered semantic search for government schemes",
@@ -242,34 +236,38 @@ Your intelligent WhatsApp assistant with smart tools and live data.
             ],
             "Deep Research Tools": [
                 "deep_research - Perform deep research on a topic using citation graph traversal, Wikipedia, and arXiv integration."
+
             ],
             "Thinking Tools": [
-                "thinking_tool - Dynamic, auto-iterative, and branching problem-solving; hypothesis generation and verification.",
-                "  • Code: src/tools/thinking_tool.py, src/services/thinking_tool_service.py"
+                "thinking_tool - Dynamic, auto-iterative, and branching problem-solving; hypothesis generation and verification."
             ],
             "Ultimate Research Tools": [
-                "researchers_wet_dream - Ultimate autonomous research with deep thinking integration; multi-source, multi-iteration, citation network analysis.",
-                "  • Code: src/tools/researchers_wet_dream.py, src/services/researchers_wet_dream_service.py"
+                "researchers_wet_dream - Ultimate autonomous research with deep thinking integration; multi-source, multi-iteration, citation network analysis."
             ]
         }
-        
         response_parts = ["🛠️ **Available Tools in Chup AI MCP Server:**", ""]
-        
         for category, tools in tools_info.items():
             response_parts.append(f"**{category}:**")
             for tool in tools:
                 response_parts.append(f"  • {tool}")
             response_parts.append("")
-        
         response_parts.extend([
             "For more details on each tool, use the help command or ask for specific functionality.",
             "You can also use the `core_get_help_menu` command to see a comprehensive help menu."
         ])
-        
         output = "\n".join(response_parts)
         logger.info(f"core_get_available_tools tool output: {output[:200]}..." if len(output) > 200 else f"core_get_available_tools tool output: {output}")
         return [TextContent(type="text", text=output)]
-    
+
+    @mcp.tool(description=available_tools_desc.model_dump_json())
+    async def core_get_available_tools() -> list[TextContent]:
+        """
+        Get a list of all available tools and their descriptions.
+        Now includes advanced thinking and research tools.
+        """
+        logger.info("core_get_available_tools tool called")
+        return _get_available_tools_output()
+
     @mcp.tool(description=available_tools_desc.model_dump_json())
     async def core_list_tools() -> list[TextContent]:
         """
@@ -277,9 +275,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
         Returns the same output as core_get_available_tools.
         """
         logger.info("core_list_tools tool called (alias for core_get_available_tools)")
-        result = await core_get_available_tools()
-        logger.info(f"core_list_tools tool output: {result[0].text[:200]}..." if len(result[0].text) > 200 else f"core_list_tools tool output: {result[0].text}")
-        return result
+        return _get_available_tools_output()
 
     # Register scheme search tools
     register_scheme_tools(mcp)

@@ -101,3 +101,21 @@ I went beyond the basic requirements to demonstrate expertise by implementing a 
   - Eligibility criteria
 - Natural language processing
 - Similarity scoring
+
+#### Advanced Thinking & Research Tools
+- Thinking Tool:
+  - Dynamic, auto-iterative, and branching problem-solving
+  - Hypothesis generation and verification
+  - Cognitive and philosophical analysis
+
+- Researcher's Wet Dream:
+  - Ultimate autonomous research with deep thinking integration
+  - Multi-source, multi-iteration, citation network analysis
+  - DFS citation traversal, Wikipedia, arXiv, Semantic Scholar, OpenAlex, PubMed integration
+  - Dynamic research planning, gap analysis, and cross-source validation
+
+- Researcher's Wet Dream:
+  - Ultimate autonomous research with deep thinking integration
+  - Multi-source, multi-iteration, citation network analysis
+  - DFS citation traversal, Wikipedia, arXiv, Semantic Scholar, OpenAlex, PubMed integration
+  - Dynamic research planning, gap analysis, and cross-source validation

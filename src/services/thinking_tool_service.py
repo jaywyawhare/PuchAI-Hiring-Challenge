@@ -227,12 +227,36 @@ class ThinkingToolService(ToolService):
             autoIterate: Optional[bool] = None,
             maxDepth: Optional[int] = None
         ) -> List[TextContent]:
-            logger.info(f"thinking_tool called (thinking_tool_service) with thought_number={thoughtNumber}, total_thoughts={totalThoughts}")
+            # Log complete input parameters
+            input_data = {
+                "thought": thought,
+                "nextThoughtNeeded": nextThoughtNeeded,
+                "thoughtNumber": thoughtNumber,
+                "totalThoughts": totalThoughts,
+                "isRevision": isRevision,
+                "revisesThought": revisesThought,
+                "branchFromThought": branchFromThought,
+                "branchId": branchId,
+                "needsMoreThoughts": needsMoreThoughts,
+                "isHypothesis": isHypothesis,
+                "isVerification": isVerification,
+                "returnFullHistory": returnFullHistory,
+                "autoIterate": autoIterate,
+                "maxDepth": maxDepth
+            }
+            logger.info(f"thinking_tool called with complete input: {json.dumps(input_data, indent=2)}")
+            
             data = locals()
             try:
                 result = self.engine.process_thought(data)
-                logger.info(f"thinking_tool output (thinking_tool_service): {result['content'][0].text[:200]}..." if len(result['content'][0].text) > 200 else f"thinking_tool output (thinking_tool_service): {result['content'][0].text}")
+                
+                # Log complete output
+                output_text = result['content'][0].text
+                logger.info(f"thinking_tool completed with complete output: {output_text}")
+                
                 return result["content"]
             except Exception as e:
-                logger.error(f"thinking_tool error (thinking_tool_service): {e}")
+                error_msg = f"thinking_tool error: {str(e)}"
+                logger.error(f"thinking_tool failed with complete error: {error_msg}")
+                logger.error(f"Full exception details: {e}")
                 return [TextContent(type="text", text=json.dumps({"error": str(e), "status": "failed"}, indent=2))]

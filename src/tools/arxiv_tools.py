@@ -13,6 +13,7 @@ import httpx
 import openai
 import asyncio
 from ..utils.helpers import translate_to_english
+import json
 
 
 class RichToolDescription(openai.BaseModel):
@@ -218,7 +219,15 @@ def register_arxiv_tools(mcp):
         - Author: au:"Hinton" AND ti:"deep learning"
         - Category: cat:cs.AI
         """
-        logger.info(f"search_arxiv_papers tool called with query={query}, max_results={max_results}")
+        # Log complete input parameters
+        input_data = {
+            "query": query,
+            "max_results": max_results,
+            "include_abstracts": include_abstracts,
+            "source_lang": source_lang
+        }
+        logger.info(f"search_arxiv_papers tool called with complete input: {json.dumps(input_data, indent=2)}")
+        
         try:
             # Translate query to English if needed
             query_en = await translate_to_english(query, source_lang)
@@ -227,11 +236,13 @@ def register_arxiv_tools(mcp):
             arxiv = ArxivAPI()
             papers = await arxiv.search(query_en, max_results)
             
+            # Log complete search results
+            logger.info(f"arXiv search completed with complete results: {json.dumps(papers, indent=2, default=str)}")
+            
             if not papers:
-                return [TextContent(
-                    type="text",
-                    text=f"❌ **No papers found for query:** {query}"
-                )]
+                error_response = f"❌ **No papers found for query:** {query}"
+                logger.error(f"arXiv search failed: {error_response}")
+                return [TextContent(type="text", text=error_response)]
             
             result_text = f"""
 **📚 arXiv Paper Search Results**
@@ -274,15 +285,18 @@ Found {len(papers)} papers:
 *🔴 Live data from arXiv.org API*
 """
             
-            logger.info(f"search_arxiv_papers tool output: {result_text[:200]}..." if len(result_text) > 200 else f"search_arxiv_papers tool output: {result_text}")
+            # Log complete output
+            logger.info(f"search_arxiv_papers tool completed with complete output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
-            logger.error(f"Error in search_arxiv_papers: {e}")
+            error_msg = f"Error searching arXiv: {str(e)}"
+            logger.error(f"search_arxiv_papers tool failed with complete error: {error_msg}")
+            logger.error(f"Full exception details: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
-                    message=f"Error searching arXiv: {str(e)}"
+                    message=error_msg
                 )
             )
 
@@ -303,20 +317,30 @@ Found {len(papers)} papers:
         Use search_arxiv_papers() for searching papers by keywords.
         This tool only accepts valid arXiv IDs like: 2103.08220, 1234.5678
         """
-        logger.info(f"get_arxiv_paper tool called with paper_id={paper_id}")
+        # Log complete input parameters
+        input_data = {
+            "paper_id": paper_id
+        }
+        logger.info(f"get_arxiv_paper tool called with complete input: {json.dumps(input_data, indent=2)}")
+        
         try:
             logger.info(f"Getting arXiv paper details for ID: {paper_id}")
             # Validate arXiv ID format
             import re
             if not re.match(r'^\d{4}\.\d{4,5}(?:v\d+)?$', paper_id):
-                raise ValueError(
+                error_msg = (
                     f"Invalid arXiv ID format: {paper_id}\n"
                     "Please use search_arxiv_papers() for searching papers by keywords.\n"
                     "Example: search_arxiv_papers('neural networks')"
                 )
+                logger.error(f"Invalid arXiv ID format: {error_msg}")
+                raise ValueError(error_msg)
             
             arxiv = ArxivAPI()
             paper = await arxiv.get_paper(paper_id)
+            
+            # Log complete paper data
+            logger.info(f"arXiv paper retrieved with complete data: {json.dumps(paper, indent=2, default=str)}")
             
             pub_date = datetime.fromisoformat(paper['published'].replace('Z', '+00:00'))
             update_date = datetime.fromisoformat(paper['updated'].replace('Z', '+00:00'))
@@ -357,14 +381,17 @@ Found {len(papers)} papers:
             
             result_text += "\n*🔴 Live data from arXiv.org API*"
             
-            logger.info(f"get_arxiv_paper tool output: {result_text[:200]}..." if len(result_text) > 200 else f"get_arxiv_paper tool output: {result_text}")
+            # Log complete output
+            logger.info(f"get_arxiv_paper tool completed with complete output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
-            logger.error(f"Error in get_arxiv_paper: {e}")
+            error_msg = f"Error fetching arXiv paper: {str(e)}"
+            logger.error(f"get_arxiv_paper tool failed with complete error: {error_msg}")
+            logger.error(f"Full exception details: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
-                    message=f"Error fetching arXiv paper: {str(e)}"
+                    message=error_msg
                 )
             )

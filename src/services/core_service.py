@@ -111,6 +111,11 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 - `core_get_help_menu()` - Show this help menu
 - `core_list_tools()` - Get a list of all available tools
 
+**Advanced Research Tools:**
+- `researchers_wet_dream(topic, research_depth, thinking_depth, auto_iterate, max_iterations)` - 🎯 Ultimate autonomous research with thinking integration
+- `deep_research(topic, max_depth, include_wikipedia, include_arxiv)` - Deep research with citation analysis
+- `thinking_tool(thought, nextThoughtNeeded, thoughtNumber, totalThoughts, ...)` - Dynamic problem-solving with revision and branching
+
 **Web Tools:**
 - `fetch(url)` - Fetch webpage content
 - `search_information_on_internet(query)` - Search the web
@@ -142,21 +147,23 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 - `get_weather(location)` - Get current weather
 
 **Usage Stats:**
-- Total Tools: 20+
+- Total Tools: 25+
 - Live Data Sources: 5
-- API Integrations: 8+
+- API Integrations: 10+
 - Response Types: JSON, Markdown, Text
+- Advanced Research: 3 tools with autonomous capabilities
 
 **Quick Examples:**
 - "resume()" → Get developer resume
-- "meow()" → Get cute cat content  
+- "researchers_wet_dream('AI ethics')" → Comprehensive autonomous research
+- "thinking_tool('Analyzing this problem...', True, 1, 5)" → Start thinking process
 - "fetch('https://news.com')" → Get webpage
 - "get_weather('London')" → London weather
 - "search_arxiv_papers('AI')" → AI research papers
 
 **Pro Tip:** Use core_get_help_menu() for detailed usage instructions!
 
-*Chup AI is production-ready for Puch AI WhatsApp Bot integration.*
+*Chup AI is production-ready for Puch AI WhatsApp Bot integration with advanced research capabilities.*
             """
             result_text = help_text.strip()
             logger.info(f"core_get_help_menu tool output (core_service): {result_text[:200]}..." if len(result_text) > 200 else f"core_get_help_menu tool output (core_service): {result_text}")
@@ -169,7 +176,15 @@ Your intelligent WhatsApp assistant with smart tools and live data.
             include_wikipedia: bool = True,
             include_arxiv: bool = True
         ) -> list[TextContent]:
-            logger.info(f"deep_research tool called (core_service) with topic={topic}, max_depth={max_depth}, include_wikipedia={include_wikipedia}, include_arxiv={include_arxiv}")
+            # Log complete input parameters
+            input_data = {
+                "topic": topic,
+                "max_depth": max_depth,
+                "include_wikipedia": include_wikipedia,
+                "include_arxiv": include_arxiv
+            }
+            logger.info(f"deep_research tool called with complete input: {json.dumps(input_data, indent=2)}")
+            
             summary = f"# Deep Research Summary\n\n**Topic:** {topic}\n\nThis is a mock summary for '{topic}'."
             references = [
                 {"title": "Reference Paper 1", "url": "https://arxiv.org/abs/1234.5678"},
@@ -206,5 +221,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
             markdown += "\n---\n\n## 🕸️ Citation Graph (JSON)\n"
             markdown += f"```json\n{json.dumps(citation_graph, indent=2)}\n```\n"
             markdown += "\n---\n\n💡 *This is a mock result. Actual research will include multi-level citation traversal and real references.*"
-            logger.info(f"deep_research tool output (core_service): {markdown[:200]}..." if len(markdown) > 200 else f"deep_research tool output (core_service): {markdown}")
+            
+            # Log complete output
+            logger.info(f"deep_research tool completed with complete output: {markdown}")
             return [TextContent(type="text", text=markdown.strip())]

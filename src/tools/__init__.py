@@ -10,6 +10,7 @@ from .arxiv_tools import register_arxiv_tools
 from .hn_tools import register_hn_tools
 from .deep_research import register_deep_research_tools
 from .thinking_tool import register_thinking_tool
+from .researchers_wet_dream import register_researchers_wet_dream
 
 __all__ = [
     "register_core_tools",
@@ -20,7 +21,8 @@ __all__ = [
     "register_arxiv_tools",
     "register_hn_tools",
     "register_deep_research_tools",
-    "register_thinking_tool"
+    "register_thinking_tool",
+    "register_researchers_wet_dream"
 ]
 
 def register_all_tools(mcp):
@@ -34,3 +36,4 @@ def register_all_tools(mcp):
     register_hn_tools(mcp)
     register_deep_research_tools(mcp)
     register_thinking_tool(mcp)
+    register_researchers_wet_dream(mcp)

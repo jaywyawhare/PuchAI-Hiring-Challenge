@@ -124,10 +124,14 @@ class UnifiedDeepResearchEngine:
         # Generate comprehensive analysis
         analysis = await self._generate_unified_analysis(topic)
         
+        # Convert research tree to dictionary format for compatibility
+        citations = self._convert_research_tree_to_dicts()
+        
         return {
             "success": True,
             "topic": topic,
             "total_sources": len(self.research_tree),
+            "citations": citations,  # Add citations in dictionary format
             "source_breakdown": self._get_source_breakdown(),
             "max_depth_reached": max(c.depth for c in self.research_tree) if self.research_tree else 0,
             "analysis": analysis,
@@ -335,16 +339,57 @@ class UnifiedDeepResearchEngine:
             
             async with httpx.AsyncClient(timeout=15) as client:
                 response = await client.get(url, params=params)
-                data = response.json()
+                
+                # Handle rate limiting
+                if response.status_code == 429:
+                    logger.warning("Semantic Scholar rate limited, skipping this source")
+                    return []
+                
+                if response.status_code != 200:
+                    logger.error(f"Semantic Scholar search failed with status {response.status_code}")
+                    return []
+                
+                try:
+                    data = response.json()
+                except Exception as e:
+                    logger.error(f"Failed to parse Semantic Scholar JSON response: {e}")
+                    return []
+                
+                if not data or not isinstance(data, dict):
+                    logger.warning("Semantic Scholar returned invalid data format")
+                    return []
                 
                 citations = []
-                for paper in data.get("data", []):
-                    authors = [author.get("name", "") for author in paper.get("authors", [])]
+                papers = data.get("data", [])
+                
+                if not isinstance(papers, list):
+                    logger.warning("Semantic Scholar papers data is not a list")
+                    return []
+                
+                for paper in papers:
+                    if not isinstance(paper, dict):
+                        continue
+                        
+                    authors = []
+                    paper_authors = paper.get("authors", [])
+                    if isinstance(paper_authors, list):
+                        for author in paper_authors:
+                            if isinstance(author, dict):
+                                author_name = author.get("name", "")
+                                if author_name:
+                                    authors.append(author_name)
+                    
                     paper_id = paper.get("paperId", "")
+                    if not paper_id:
+                        continue
+                    
+                    title = paper.get("title", "").strip()
+                    if not title:
+                        continue
                     
                     citation = UnifiedCitation(
                         source="semantic_scholar",
-                        title=paper.get("title", "").strip(),
+                        title=title,
                         url=f"https://www.semanticscholar.org/paper/{paper_id}",
                         date=str(paper.get("year", "")),
                         authors=authors,
@@ -357,7 +402,7 @@ class UnifiedDeepResearchEngine:
                     
                     # Get open access URL if available
                     open_access = paper.get("openAccessPdf")
-                    if open_access and open_access.get("url"):
+                    if isinstance(open_access, dict) and open_access.get("url"):
                         citation.open_access_url = open_access["url"]
                     
                     citation.influential_citation_count = paper.get("influentialCitationCount", 0)
@@ -641,17 +686,18 @@ class UnifiedDeepResearchEngine:
                     
                     if not citation.abstract:
                         citation.abstract = summary
-                    citation.content_summary = summary[:500] + "..." if len(summary) > 500 else summary
+                    citation.content_summary = citation.abstract[:500] + "..." if len(citation.abstract) > 500 else citation.abstract
                     
                     # Try to get full content from PDF
                     pdf_url = citation.url.replace('abs', 'pdf') + '.pdf'
                     full_content = await self._extract_arxiv_pdf_content(pdf_url)
-                    if full_content:
+                    if full_content and len(full_content) > 100:
                         citation.full_content = full_content
                         citation.key_concepts = self._extract_key_concepts(full_content)
                     else:
-                        citation.full_content = summary
-                        citation.key_concepts = self._extract_key_concepts(summary)
+                        # Use abstract as full content if no PDF content
+                        citation.full_content = citation.abstract
+                        citation.key_concepts = self._extract_key_concepts(citation.abstract)
                     
                     # Extract references
                     references = self._extract_references_from_content(citation.full_content)
@@ -808,17 +854,77 @@ class UnifiedDeepResearchEngine:
         return ""
     
     async def _extract_arxiv_pdf_content(self, pdf_url: str) -> str:
-        """Extract text content from arXiv PDF"""
+        """Extract text content from arXiv PDF using proper PDF processing"""
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
+            # Fix arXiv PDF URL format
+            if 'arxiv.org/abs/' in pdf_url:
+                pdf_url = pdf_url.replace('arxiv.org/abs/', 'arxiv.org/pdf/') + '.pdf'
+            elif 'arxiv.org/pdf/' not in pdf_url:
+                pdf_url = pdf_url.replace('arxiv.org/abs/', 'arxiv.org/pdf/') + '.pdf'
+            
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
                 response = await client.get(pdf_url)
                 if response.status_code == 200:
                     content_size = len(response.content)
                     if content_size > 0:
-                        # In production, you would integrate a PDF text extraction library
-                        # such as PyPDF2, pdfplumber, or pdfminer for actual text extraction
-                        # For now, we return structured content indication
-                        return f"[Full ArXiv Paper Content - {content_size} bytes]\n\nThis paper contains comprehensive academic content including:\n- Abstract and Introduction\n- Methodology and Experimental Design\n- Results and Analysis\n- Discussion and Conclusions\n- References and Citations\n\nThe complete text would be extracted here using PDF processing libraries in a production environment."
+                        # Try to extract text using PyPDF2 if available
+                        try:
+                            import PyPDF2
+                            import io
+                            
+                            pdf_file = io.BytesIO(response.content)
+                            pdf_reader = PyPDF2.PdfReader(pdf_file)
+                            
+                            full_text = ""
+                            for page_num in range(min(len(pdf_reader.pages), 10)):  # Limit to first 10 pages
+                                page = pdf_reader.pages[page_num]
+                                page_text = page.extract_text()
+                                if page_text:
+                                    full_text += f"\n--- Page {page_num + 1} ---\n{page_text}\n"
+                            
+                            if full_text.strip():
+                                return full_text.strip()
+                            
+                        except ImportError:
+                            logger.info("PyPDF2 not available, trying pdfplumber")
+                            try:
+                                import pdfplumber
+                                import io
+                                
+                                pdf_file = io.BytesIO(response.content)
+                                with pdfplumber.open(pdf_file) as pdf:
+                                    full_text = ""
+                                    for page_num, page in enumerate(pdf.pages[:10]):  # Limit to first 10 pages
+                                        page_text = page.extract_text()
+                                        if page_text:
+                                            full_text += f"\n--- Page {page_num + 1} ---\n{page_text}\n"
+                                    
+                                    if full_text.strip():
+                                        return full_text.strip()
+                                        
+                            except ImportError:
+                                logger.info("pdfplumber not available, using fallback")
+                        
+                        # Fallback: return structured content with metadata
+                        return f"""
+[ArXiv Paper Content - {content_size} bytes]
+
+This paper contains comprehensive academic content including:
+- Abstract and Introduction
+- Methodology and Experimental Design  
+- Results and Analysis
+- Discussion and Conclusions
+- References and Citations
+
+PDF Content Size: {content_size:,} bytes
+Content Type: Academic Research Paper
+Source: ArXiv PDF
+
+Note: Full text extraction requires PyPDF2 or pdfplumber library.
+Install with: pip install PyPDF2 pdfplumber
+
+The complete text would be extracted here using PDF processing libraries.
+"""
                     
         except Exception as e:
             logger.error(f"Error extracting PDF content: {e}")
@@ -946,30 +1052,63 @@ class UnifiedDeepResearchEngine:
         return tree
     
     def _calculate_content_metrics(self) -> Dict[str, Any]:
-        """Calculate detailed content metrics"""
-        total_content_length = sum(len(c.full_content) for c in self.research_tree)
-        total_abstract_length = sum(len(c.abstract) for c in self.research_tree)
-        total_citations = sum(c.citation_count for c in self.research_tree if c.citation_count)
+        """Calculate content quality metrics for all citations"""
+        total_citations = len(self.research_tree)
+        if total_citations == 0:
+            return {
+                "total_citations": 0,
+                "sources_with_abstracts": 0,
+                "sources_with_full_content": 0,
+                "abstract_coverage": 0.0,
+                "full_content_coverage": 0.0,
+                "average_abstract_length": 0,
+                "average_content_length": 0,
+                "total_content_length": 0,
+                "total_abstract_length": 0,
+                "avg_content_per_source": 0,
+                "avg_abstract_per_source": 0,
+                "citation_coverage": 0.0,
+                "avg_citation_count": 0.0
+            }
         
-        sources_with_abstracts = len([c for c in self.research_tree if c.abstract])
-        sources_with_full_content = len([c for c in self.research_tree if c.full_content and len(c.full_content) > 100])
+        sources_with_abstracts = 0
+        sources_with_full_content = 0
+        total_abstract_length = 0
+        total_content_length = 0
+        total_citation_count = 0
         
-        avg_citation_count = total_citations / len(self.research_tree) if self.research_tree else 0
+        for citation in self.research_tree:
+            # Check for abstracts (non-empty abstract field)
+            if citation.abstract and len(citation.abstract.strip()) > 10:
+                sources_with_abstracts += 1
+                total_abstract_length += len(citation.abstract)
+            
+            # Check for full content (non-empty full_content field)
+            if citation.full_content and len(citation.full_content.strip()) > 100:
+                sources_with_full_content += 1
+                total_content_length += len(citation.full_content)
+            
+            # Count citations
+            total_citation_count += citation.citation_count or 0
         
         return {
-            "total_content_length": total_content_length,
-            "total_abstract_length": total_abstract_length,
-            "avg_content_per_source": total_content_length / len(self.research_tree) if self.research_tree else 0,
-            "avg_abstract_per_source": total_abstract_length / len(self.research_tree) if self.research_tree else 0,
+            "total_citations": total_citations,
             "sources_with_abstracts": sources_with_abstracts,
             "sources_with_full_content": sources_with_full_content,
-            "total_citations": total_citations,
-            "avg_citation_count": avg_citation_count,
-            "citation_coverage": sources_with_abstracts / len(self.research_tree) * 100 if self.research_tree else 0
+            "abstract_coverage": sources_with_abstracts / total_citations if total_citations > 0 else 0.0,
+            "full_content_coverage": sources_with_full_content / total_citations if total_citations > 0 else 0.0,
+            "average_abstract_length": total_abstract_length // sources_with_abstracts if sources_with_abstracts > 0 else 0,
+            "average_content_length": total_content_length // sources_with_full_content if sources_with_full_content > 0 else 0,
+            "total_content_length": total_content_length,
+            "total_abstract_length": total_abstract_length,
+            "avg_content_per_source": total_content_length / total_citations if total_citations > 0 else 0,
+            "avg_abstract_per_source": total_abstract_length / total_citations if total_citations > 0 else 0,
+            "citation_coverage": sources_with_abstracts / total_citations if total_citations > 0 else 0.0,
+            "avg_citation_count": total_citation_count / total_citations if total_citations > 0 else 0.0
         }
     
     async def _generate_unified_analysis(self, topic: str) -> str:
-        """Generate comprehensive unified research analysis"""
+        """Generate comprehensive unified research analysis with full content for LLM"""
         if not self.research_tree:
             return "No sources found for analysis."
         
@@ -1017,7 +1156,7 @@ class UnifiedDeepResearchEngine:
         
         analysis += "\n**🎯 Comprehensive Research Results:**\n"
         
-        # Show detailed results for each source type
+        # Show detailed results for each source type with full content
         for source_type, count in source_breakdown.items():
             if count > 0:
                 source_citations = [c for c in self.research_tree if c.source == source_type]
@@ -1032,11 +1171,11 @@ class UnifiedDeepResearchEngine:
                     if citation.citation_count:
                         analysis += f"   📊 Citations: {citation.citation_count}\n"
                     if citation.abstract:
-                        abstract_preview = citation.abstract[:200] + "..." if len(citation.abstract) > 200 else citation.abstract
-                        analysis += f"   📄 Abstract: {abstract_preview}\n"
+                        analysis += f"   📄 Abstract: {citation.abstract}\n"
                     if citation.full_content and len(citation.full_content) > len(citation.abstract):
-                        content_preview = citation.full_content[:300] + "..." if len(citation.full_content) > 300 else citation.full_content
-                        analysis += f"   📖 Content Preview: {content_preview}\n"
+                        # Include full content for LLM analysis
+                        content_preview = citation.full_content[:1000] + "..." if len(citation.full_content) > 1000 else citation.full_content
+                        analysis += f"   📖 Full Content: {content_preview}\n"
                     if citation.key_concepts:
                         analysis += f"   🔑 Key Concepts: {', '.join(citation.key_concepts[:5])}\n"
                     analysis += f"   🔗 URL: {citation.url}\n"
@@ -1048,14 +1187,14 @@ class UnifiedDeepResearchEngine:
         analysis += f"""
 
 **📊 Deep Content Analysis:**
-• Total content analyzed: {content_metrics['total_content_length']:,} characters
-• Total abstracts: {content_metrics['total_abstract_length']:,} characters
-• Average content per source: {content_metrics['avg_content_per_source']:,.0f} characters
-• Average abstract per source: {content_metrics['avg_abstract_per_source']:,.0f} characters
-• Sources with abstracts: {content_metrics['sources_with_abstracts']} ({content_metrics['citation_coverage']:.1f}%)
-• Sources with full content: {content_metrics['sources_with_full_content']}
-• Total citations across papers: {content_metrics['total_citations']:,}
-• Average citations per paper: {content_metrics['avg_citation_count']:.1f}
+• Total content analyzed: {content_metrics.get('total_content_length', 0):,} characters
+• Total abstracts: {content_metrics.get('total_abstract_length', 0):,} characters
+• Average content per source: {content_metrics.get('average_content_length', 0):,.0f} characters
+• Average abstract per source: {content_metrics.get('average_abstract_length', 0):,.0f} characters
+• Sources with abstracts: {content_metrics.get('sources_with_abstracts', 0)} ({content_metrics.get('abstract_coverage', 0):.1f}%)
+• Sources with full content: {content_metrics.get('sources_with_full_content', 0)}
+• Total citations across papers: {content_metrics.get('total_citations', 0):,}
+• Average citations per paper: {content_metrics.get('avg_citation_count', 0):.1f}
 
 **🔗 Citation Network Analysis:**
 • Direct references found: {sum(len(c.references) for c in self.research_tree)}
@@ -1069,10 +1208,73 @@ class UnifiedDeepResearchEngine:
 • Academic coverage: {(source_breakdown.get('arxiv', 0) + source_breakdown.get('semantic_scholar', 0) + source_breakdown.get('openalex', 0) + source_breakdown.get('pubmed', 0)) / len(self.research_tree) * 100:.1f}%
 • Encyclopedia coverage: {source_breakdown.get('wikipedia', 0) / len(self.research_tree) * 100:.1f}%
 
-*🔴 Unified deep research completed using multi-source DFS citation traversal*
+**📋 COMPLETE CONTENT FOR LLM ANALYSIS:**
+
+"""
+        
+        # Include all abstracts and content for LLM processing
+        for i, citation in enumerate(self.research_tree, 1):
+            analysis += f"""
+**SOURCE {i}: {citation.title}**
+**Source Type:** {citation.source}
+**Authors:** {', '.join(citation.authors) if citation.authors else 'Unknown'}
+**Venue:** {citation.venue if citation.venue else 'Unknown'}
+**Date:** {citation.date if citation.date else 'Unknown'}
+**URL:** {citation.url}
+**Citation Count:** {citation.citation_count if citation.citation_count else 0}
+
+**ABSTRACT:**
+{citation.abstract if citation.abstract else 'No abstract available'}
+
+**FULL CONTENT:**
+{citation.full_content if citation.full_content else 'No full content available'}
+
+**KEY CONCEPTS:**
+{', '.join(citation.key_concepts) if citation.key_concepts else 'No concepts extracted'}
+
+**REFERENCES:**
+{chr(10).join([f"- {ref.title}" for ref in citation.references[:5]]) if citation.references else 'No references found'}
+
+---
+"""
+        
+        analysis += f"""
+
+*🔴 Unified deep research completed using multi-source DFS citation traversal with full content extraction for LLM analysis*
         """
         
         return analysis.strip()
+
+    def _convert_research_tree_to_dicts(self) -> List[Dict[str, Any]]:
+        """Convert research tree to dictionary format for compatibility."""
+        citations = []
+        for citation in self.research_tree:
+            citation_dict = {
+                'source': citation.source,
+                'title': citation.title,
+                'url': citation.url,
+                'date': citation.date,
+                'authors': citation.authors,
+                'depth': citation.depth,
+                'parent': citation.parent,
+                'paper_id': citation.paper_id,
+                'doi': citation.doi,
+                'citation_count': citation.citation_count,
+                'venue': citation.venue,
+                'abstract': citation.abstract,
+                'full_content': citation.full_content,
+                'content_summary': citation.content_summary,
+                'key_concepts': citation.key_concepts,
+                'references': [ref.__dict__ if hasattr(ref, '__dict__') else ref for ref in citation.references],
+                'cited_by': citation.cited_by,
+                'influential_citation_count': citation.influential_citation_count,
+                'open_access_url': citation.open_access_url,
+                'publication_types': citation.publication_types,
+                'fields_of_study': citation.fields_of_study,
+                'year': citation.year
+            }
+            citations.append(citation_dict)
+        return citations
 
 
 def register_deep_research_tools(mcp):
@@ -1105,7 +1307,14 @@ def register_deep_research_tools(mcp):
         The research goes beyond surface-level information to explore
         the interconnected web of knowledge around your topic.
         """
-        logger.info(f"deep_research_with_citations tool called with topic={topic}, max_depth={max_depth}")
+        # Log complete input parameters
+        input_data = {
+            "topic": topic,
+            "max_depth": max_depth,
+            "include_citation_tree": include_citation_tree
+        }
+        logger.info(f"deep_research_with_citations tool called with complete input: {json.dumps(input_data, indent=2)}")
+        
         try:
             logger.info(f"Starting deep research for: {topic} (depth: {max_depth})")
             
@@ -1115,11 +1324,26 @@ def register_deep_research_tools(mcp):
             # Perform deep research
             results = await research_engine.unified_deep_research(topic)
             
+            # Record the deep research call in the tracker
+            try:
+                from ..services.researchers_wet_dream_service import DeepResearchTracker
+                tracker = DeepResearchTracker("deep_research_history.json")
+                session_id = tracker.record_deep_research_call(
+                    topic=topic,
+                    research_data=results,
+                    source_tool="deep_research_with_citations"
+                )
+                logger.info(f"Recorded deep research call with session ID: {session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to record deep research call: {e}")
+            
+            # Log complete results
+            logger.info(f"Deep research completed with complete results: {json.dumps(results, indent=2, default=str)}")
+            
             if not results.get("success"):
-                return [TextContent(
-                    type="text",
-                    text="❌ **Research failed:** Unable to find sufficient sources for analysis."
-                )]
+                error_response = "❌ **Research failed:** Unable to find sufficient sources for analysis."
+                logger.error(f"Deep research failed: {error_response}")
+                return [TextContent(type="text", text=error_response)]
             
             # Format comprehensive results
             result_text = results["analysis"]
@@ -1169,14 +1393,17 @@ def register_deep_research_tools(mcp):
 *🔴 Live deep research using advanced citation analysis*
             """
             
-            logger.info(f"deep_research_with_citations tool output: {result_text[:200]}..." if len(result_text) > 200 else f"deep_research_with_citations tool output: {result_text}")
+            # Log complete output
+            logger.info(f"deep_research_with_citations tool completed with complete output: {result_text}")
             return [TextContent(type="text", text=result_text.strip())]
             
         except Exception as e:
-            logger.error(f"Error in deep_research_with_citations: {e}")
+            error_msg = f"Error performing deep research: {str(e)}"
+            logger.error(f"deep_research_with_citations tool failed with complete error: {error_msg}")
+            logger.error(f"Full exception details: {e}")
             raise McpError(
                 ErrorData(
                     code=INTERNAL_ERROR,
-                    message=f"Error performing deep research: {str(e)}"
+                    message=error_msg
                 )
             )

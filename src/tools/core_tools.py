@@ -114,20 +114,18 @@ def register_core_tools(mcp):
     async def core_get_help_menu() -> list[TextContent]:
         """
         Display comprehensive help menu for Chup AI - Intelligent Assistant for Puch AI.
-        
-        Returns a well-formatted menu showing all available tools organized by category,
-        optimized for WhatsApp chatbot interactions.
+        Now includes advanced thinking and research tools.
         """
         logger.info("Generating help menu...")
         logger.info("core_get_help_menu tool called")
         help_text = """
-🤖 **Welcome to Chup AI!** 
+🤖 **Welcome to Chup AI!**
 Your intelligent WhatsApp assistant with smart tools and live data.
 
 📋 **What I Can Do:**
 
 **📝 Basic Functions:**
-• Show my developer's resume 
+• Show my developer's resume
 • Share my system credentials
 • Display this help menu
 
@@ -140,7 +138,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 • Find trains between stations
 • Check PNR booking status
 • View complete train schedules
-• See live station updates 
+• See live station updates
 
 **🎵 Music & Entertainment:**
 • Find songs across platforms
@@ -153,13 +151,21 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 • Search academic papers
 • Get detailed paper info
 • Access arXiv database
-• Perform deep research with citation analysis
 
 **🔬 Deep Research:**
 • Comprehensive topic analysis using DFS citation traversal
-• Wikipedia and arXiv source integration  
+• Wikipedia and arXiv source integration
 • Reference analysis and knowledge graph construction
 • Multi-level citation exploration
+
+**🧠 Thinking Tools:**
+• Dynamic, auto-iterative, and branching problem-solving
+• Hypothesis generation and verification
+• Cognitive and philosophical analysis
+
+**🎯 Researcher's Wet Dream:**
+• Ultimate autonomous research with deep thinking integration
+• Multi-source, multi-iteration, citation network analysis
 
 **📰 Hacker News Feed:**
 • Browse top stories
@@ -174,18 +180,18 @@ Your intelligent WhatsApp assistant with smart tools and live data.
 
 📊 **Key Features:**
 ✅ Live data from verified sources
-✅ Smart web content processing 
+✅ Smart web content processing
 ✅ Multi-platform music support
 ✅ WhatsApp-optimized responses
 ✅ Bearer token authentication
-✅ Advanced research capabilities
+✅ Advanced research & thinking capabilities
 
 💡 **Quick Tips:**
 • Ask in natural language
 • Share links to fetch content
 • Use station codes for trains
 • Be specific with requests
-• Try deep research for comprehensive topic analysis
+• Try deep research or thinking tools for comprehensive topic analysis
 
 *🔴 Always connected to live data sources*
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -205,9 +211,7 @@ Your intelligent WhatsApp assistant with smart tools and live data.
     async def core_get_available_tools() -> list[TextContent]:
         """
         Get a list of all available tools and their descriptions.
-        
-        Returns information about all tools available in this MCP server,
-        including scheme search, web tools, and other utilities.
+        Now includes advanced thinking and research tools.
         """
         logger.info("core_get_available_tools tool called")
         tools_info = {
@@ -238,6 +242,14 @@ Your intelligent WhatsApp assistant with smart tools and live data.
             ],
             "Deep Research Tools": [
                 "deep_research - Perform deep research on a topic using citation graph traversal, Wikipedia, and arXiv integration."
+            ],
+            "Thinking Tools": [
+                "thinking_tool - Dynamic, auto-iterative, and branching problem-solving; hypothesis generation and verification.",
+                "  • Code: src/tools/thinking_tool.py, src/services/thinking_tool_service.py"
+            ],
+            "Ultimate Research Tools": [
+                "researchers_wet_dream - Ultimate autonomous research with deep thinking integration; multi-source, multi-iteration, citation network analysis.",
+                "  • Code: src/tools/researchers_wet_dream.py, src/services/researchers_wet_dream_service.py"
             ]
         }
         

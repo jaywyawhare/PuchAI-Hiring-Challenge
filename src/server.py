@@ -13,6 +13,7 @@ from .services.weather_service import WeatherService
 from .services.academic_service import AcademicService
 from .services.news_service import NewsService
 from .services.thinking_tool_service import ThinkingToolService
+from .services.researchers_wet_dream_service import ResearchersWetDreamService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class MCPServer:
         self.registry.register_service(AcademicService())
         self.registry.register_service(NewsService())
         self.registry.register_service(ThinkingToolService())
+        self.registry.register_service(ResearchersWetDreamService())
         
         logger.info("Services setup complete in MCPServer")
     

@@ -21,6 +21,18 @@ class ContentFetcher(BaseAPIClient):
     def __init__(self):
         super().__init__(timeout=REQUEST_TIMEOUT)
     
+    async def health_check(self) -> bool:
+        """Health check for the content fetcher."""
+        try:
+            # Simple health check - try to fetch a known reliable URL
+            test_url = "https://httpbin.org/get"
+            async with self._get_client() as client:
+                response = await client.get(test_url, timeout=5.0)
+                return response.status_code == 200
+        except Exception as e:
+            logger.warning(f"Content fetcher health check failed: {e}")
+            return False
+    
     async def fetch_url(
         self,
         url: str,

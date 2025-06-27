@@ -22,6 +22,7 @@ from src.tools.weather_tools import register_weather_tools
 from src.tools.arxiv_tools import register_arxiv_tools
 from src.tools.hn_tools import register_hn_tools
 from src.tools.deep_research import register_deep_research_tools
+from src.tools.thinking_tool import register_thinking_tool
 
 load_dotenv()
 
@@ -168,6 +169,7 @@ register_weather_tools(mcp)
 register_arxiv_tools(mcp)
 register_hn_tools(mcp)
 register_deep_research_tools(mcp)
+register_thinking_tool(mcp)
 logger.info("All tools registered successfully")
 
 
